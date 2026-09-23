@@ -93,6 +93,24 @@ func TestRepo(t *testing.T) {
 		})
 	})
 
+	t.Run("toplevel", func(t *testing.T) {
+		t.Run("returns the root of the working tree", func(t *testing.T) {
+			repo := gittest.NewLocal(t)
+			repo.Write("deep/file.txt", "x\n")
+
+			top, err := New(repo.Dir).Toplevel(ctx)
+
+			require.NoError(t, err)
+			require.Equal(t, repo.Dir, top)
+		})
+
+		t.Run("fails outside a repository", func(t *testing.T) {
+			_, err := New(t.TempDir()).Toplevel(ctx)
+
+			require.Error(t, err)
+		})
+	})
+
 	t.Run("changed files", func(t *testing.T) {
 		t.Run("lists every file the head changed", func(t *testing.T) {
 			repo := gittest.NewWithRemote(t)
