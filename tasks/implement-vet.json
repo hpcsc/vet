@@ -1,0 +1,138 @@
+{
+  "story": "vet: judge a git diff against a file of written rules, as docs/proposal.md specifies",
+  "tasks_file": "tasks/implement-vet.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": false,
+      "title": "questions package: the questions file model and its validation",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/proposal.md:53-100",
+        "go.mod",
+        "internal/cmd/adapter_test.go:1-17"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/questions/",
+        "docs/proposal.md"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "git, gittest and diff packages: base detection, changed files, per-file unified diff",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "medium",
+      "patterns_to_follow": [
+        "docs/proposal.md:42-49",
+        "docs/proposal.md:217-222",
+        "internal/version/version_test.go:1-56"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/git/",
+        "internal/gittest/",
+        "internal/diff/"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "backend package: the Backend interface, State and Answer",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/proposal.md:102-112",
+        "internal/release/client.go:40-49"
+      ],
+      "depends_on": [1],
+      "affected_files": [
+        "internal/backend/"
+      ]
+    },
+    {
+      "n": 4,
+      "done": false,
+      "title": "verdict package: judge answers against rules and render the report",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "low",
+      "patterns_to_follow": [
+        "docs/proposal.md:165-194",
+        "internal/cmd/adapter_test.go:1-17"
+      ],
+      "depends_on": [1, 3],
+      "affected_files": [
+        "internal/verdict/"
+      ]
+    },
+    {
+      "n": 5,
+      "done": false,
+      "title": "jev backend: the System One client with question mapping and retries",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "medium",
+      "patterns_to_follow": [
+        "docs/proposal.md:114-161",
+        "internal/release/client.go:51-120",
+        "e2e/tests/update.test.ts:24-73"
+      ],
+      "depends_on": [1, 3],
+      "affected_files": [
+        "internal/backend/jev/"
+      ]
+    },
+    {
+      "n": 6,
+      "done": false,
+      "title": "cmd package: flags, judge pipeline, questions and version subcommands, exit codes",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "docs/proposal.md:21-51",
+        "docs/proposal.md:196-215",
+        "internal/cmd/root.go:25-57",
+        "internal/cmd/update.go:21-88"
+      ],
+      "depends_on": [1, 2, 3, 4, 5],
+      "affected_files": [
+        "internal/cmd/",
+        "cmd/vet/",
+        "README.md"
+      ]
+    },
+    {
+      "n": 7,
+      "done": false,
+      "title": "e2e: fake System One server, runCli-only tests, remove the TUI harness",
+      "language": "Markdown",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "medium",
+      "patterns_to_follow": [
+        "docs/proposal.md:241-252",
+        "e2e/tests/update.test.ts:24-73",
+        "e2e/testUtils.ts:38-53",
+        "e2e/Dockerfile",
+        "e2e/package.json"
+      ],
+      "depends_on": [6],
+      "affected_files": [
+        "e2e/"
+      ]
+    }
+  ]
+}
