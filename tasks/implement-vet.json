@@ -130,7 +130,7 @@
     },
     {
       "n": 7,
-      "done": false,
+      "done": true,
       "title": "e2e: fake System One server, runCli-only tests, remove the TUI harness",
       "language": "Markdown",
       "testable": true,

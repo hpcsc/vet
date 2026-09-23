@@ -1,16 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { buildTag, openCli, runCli, scratchDir } from '../testUtils'
+import { buildTag, runCli, scratchDir } from '../testUtils'
 
-describe('the root command', () => {
-  it('greets the name that the person types', async () => {
-    const cli = await openCli(scratchDir())
-    await cli.waitForText('Name:')
+describe('vet questions', () => {
+  it('prints a questions file with a rule of each type', async () => {
+    const result = await runCli(scratchDir(), ['questions'])
 
-    await cli.type('world')
-    await cli.press('enter')
-
-    const screen = await cli.waitForText('hello world')
-    expect(screen).toContain('EXIT:0')
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('type: noul')
+    expect(result.stdout).toContain('type: choice')
+    expect(result.stdout).toContain('type: score')
   })
 })
 

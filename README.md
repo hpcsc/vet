@@ -7,6 +7,29 @@ task build            # build ./bin/vet
 task run -- --help    # run the CLI from the source
 ```
 
+## Judge a change
+
+```shell
+vet                                # judge the diff from the base to HEAD against questions.yaml
+vet --base origin/main             # compare against a specific base
+vet --questions my-rules.yaml      # use a different questions file
+vet --json                         # print the report as JSON
+vet --exit-code                    # exit 1 when the change violates a rule
+vet questions                      # print an example questions file
+```
+
+`vet` runs the diff of a change against a file of written rules, answered by the System One model
+`jev-latest`, and prints a report with a check or a cross per rule. It exits 0 when the change violates
+no rule, 1 when a rule violates and `--exit-code` is on, and 2 when it cannot finish: no questions file,
+no API key, or a backend error.
+
+```shell
+TYPESAFE_API_KEY=... vet  # the API key, from the TYPESAFE_API_KEY env var or --api-key
+```
+
+`docs/proposal.md` specifies the questions file format and how the answers are judged. The base is
+`--base` when given, else `origin/HEAD`, then `origin/main`, `origin/master`, `main`, and `master`.
+
 ## Version and update
 
 ```shell
@@ -51,8 +74,8 @@ prerelease, and then keeps only the 5 newest prereleases.
 
 ## E2E Test
 
-The end-to-end tests run the built binary in a terminal, send keys to it, and read the screen. They are
-in `e2e/`, and [docs/e2e-tests.md](docs/e2e-tests.md) tells how they work.
+The end-to-end tests run the built binary against a fake System One server and throwaway git
+repositories. They are in `e2e/`, and [docs/e2e-tests.md](docs/e2e-tests.md) tells how they work.
 
 ```shell
 task test:e2e          # in Docker, as CI does

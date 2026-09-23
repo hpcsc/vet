@@ -10,9 +10,9 @@ RUN CGO_ENABLED=0 go build -ldflags "-X github.com/hpcsc/vet/internal/version.re
     -o /vet ./cmd/vet
 
 FROM node:24-trixie-slim
-# python3, make and g++ build node-pty when no prebuilt node-pty fits the platform
+# git makes the scratch repositories the judge tests run against
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends python3 make g++ \
+    && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /e2e
 COPY e2e/package.json e2e/package-lock.json* ./

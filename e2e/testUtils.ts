@@ -1,8 +1,7 @@
-import { spawn } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { spawn, execFileSync } from 'node:child_process'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { launchTerminal, type Session } from 'tuistory'
 import { onTestFinished } from 'vitest'
 
 export function getExecutablePath(): string {
@@ -24,6 +23,29 @@ export function buildTag(): string {
 export function scratchDir(): string {
   const dir = mkdtempSync(join(tmpdir(), 'vet-e2e-'))
   onTestFinished(() => rmSync(dir, { recursive: true, force: true }))
+  return dir
+}
+
+function git(cwd: string, args: string[]): void {
+  execFileSync('git', args, { cwd, stdio: 'ignore' })
+}
+
+// gitRepoWithChange makes a repository with two commits and returns its
+// directory: the first commit holds change.txt with one line, the second
+// adds a line, so the base is the first commit.
+export function gitRepoWithChange(): string {
+  const dir = scratchDir()
+  const change = join(dir, 'change.txt')
+  git(dir, ['init', '-q', '-b', 'main'])
+  git(dir, ['config', 'user.email', 'vet@e2e'])
+  git(dir, ['config', 'user.name', 'vet'])
+  git(dir, ['config', 'commit.gpgsign', 'false'])
+  writeFileSync(change, 'one\n')
+  git(dir, ['add', '.'])
+  git(dir, ['commit', '-q', '-m', 'base'])
+  writeFileSync(change, 'one\ntwo\n')
+  git(dir, ['add', '.'])
+  git(dir, ['commit', '-q', '-m', 'change'])
   return dir
 }
 
@@ -50,25 +72,4 @@ export function runCli(
     child.on('error', fail)
     child.on('close', (status) => done({ stdout, stderr, status }))
   })
-}
-
-// openCli starts the CLI in a pseudo-terminal. When the CLI stops, the shell
-// writes its exit status on the screen, so a test can wait for EXIT:0.
-export async function openCli(cwd: string, args: string[] = [], env: Record<string, string> = {}): Promise<Session> {
-  const assignments = Object.entries(env)
-    .map(([name, value]) => `${name}='${value.replaceAll("'", `'\\''`)}'`)
-    .join(' ')
-  const session = await launchTerminal({
-    command: 'sh',
-    // The emulator starts in new line mode, where a line feed also goes back to
-    // column 1. A real terminal does not, and a full screen program that moves
-    // the cursor down with a line feed then draws in the wrong column, so
-    // \e[20l turns the mode off before the CLI starts.
-    args: ['-c', `printf '\\033[20l'; ${assignments} "${getExecutablePath()}" ${args.join(' ')}; echo "EXIT:$?"`],
-    cwd,
-    cols: 160,
-    rows: 40,
-  })
-  onTestFinished(() => session.close())
-  return session
 }
