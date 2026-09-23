@@ -23,7 +23,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "git, gittest and diff packages: base detection, changed files, per-file unified diff",
       "language": "Go",
       "testable": true,
