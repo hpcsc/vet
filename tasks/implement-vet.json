@@ -62,7 +62,7 @@
     },
     {
       "n": 4,
-      "done": false,
+      "done": true,
       "title": "verdict package: judge answers against rules and render the report",
       "language": "Go",
       "testable": true,
