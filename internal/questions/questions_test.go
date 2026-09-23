@@ -4,6 +4,8 @@ package questions
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -72,6 +74,78 @@ rules:
 			_, err := Parse([]byte("version: ["))
 
 			require.Error(t, err)
+		})
+	})
+
+	t.Run("load", func(t *testing.T) {
+		write := func(t *testing.T, dir string, name, content string) {
+			t.Helper()
+			require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600))
+		}
+
+		t.Run("a single file loads its rules", func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "questions.yaml")
+			write(t, dir, "questions.yaml", "version: 1\nrules:\n  - id: only-rule\n    instructions: does it?\n    type: noul\n    noulLimit: 0.5")
+
+			file, err := Load(path)
+
+			require.NoError(t, err)
+			require.Len(t, file.Rules, 1)
+			require.Equal(t, "only-rule", file.Rules[0].ID)
+		})
+
+		t.Run("a directory merges every questions file in filename order", func(t *testing.T) {
+			dir := t.TempDir()
+			write(t, dir, "a.yaml", "version: 1\nrules:\n  - id: first\n    instructions: does it?\n    type: noul\n    noulLimit: 0.5")
+			write(t, dir, "b.yaml", "version: 1\nrules:\n  - id: second\n    instructions: how good?\n    type: score\n    scores:\n      - good\n      - bad\n    scoreLimit: 1")
+
+			file, err := Load(dir)
+
+			require.NoError(t, err)
+			require.Equal(t, 1, file.Version)
+			require.Len(t, file.Rules, 2)
+			require.Equal(t, []string{"first", "second"}, []string{file.Rules[0].ID, file.Rules[1].ID})
+		})
+
+		t.Run("a directory accepts yaml and yml and skips the rest", func(t *testing.T) {
+			dir := t.TempDir()
+			write(t, dir, "a.yml", "version: 1\nrules:\n  - id: first\n    instructions: does it?\n    type: noul\n    noulLimit: 0.5")
+			write(t, dir, "notes.txt", "not questions")
+
+			file, err := Load(dir)
+
+			require.NoError(t, err)
+			require.Len(t, file.Rules, 1)
+		})
+
+		t.Run("a directory with no questions files is an error", func(t *testing.T) {
+			dir := t.TempDir()
+			write(t, dir, "notes.txt", "not questions")
+
+			_, err := Load(dir)
+
+			require.ErrorContains(t, err, "no questions files")
+		})
+
+		t.Run("an invalid file makes the load fail with the file name", func(t *testing.T) {
+			dir := t.TempDir()
+			write(t, dir, "a.yaml", "version: 3\nrules: []")
+			write(t, dir, "b.yaml", "version: 1\nrules:\n  - id: fine\n    instructions: does it?\n    type: noul\n    noulLimit: 0.5")
+
+			_, err := Load(dir)
+
+			require.ErrorContains(t, err, "a.yaml")
+		})
+
+		t.Run("an id in two files is rejected", func(t *testing.T) {
+			dir := t.TempDir()
+			write(t, dir, "a.yaml", "version: 1\nrules:\n  - id: same\n    instructions: does it?\n    type: noul\n    noulLimit: 0.5")
+			write(t, dir, "b.yaml", "version: 1\nrules:\n  - id: same\n    instructions: how good?\n    type: noul\n    noulLimit: 1")
+
+			_, err := Load(dir)
+
+			require.ErrorContains(t, err, "more than one")
 		})
 	})
 
