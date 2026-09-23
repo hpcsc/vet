@@ -103,7 +103,7 @@
     },
     {
       "n": 6,
-      "done": false,
+      "done": true,
       "title": "cmd package: flags, judge pipeline, questions and version subcommands, exit codes",
       "language": "Go",
       "testable": true,

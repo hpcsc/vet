@@ -29,11 +29,11 @@ type Rule struct {
 	ID           string            `yaml:"id"`
 	Instructions string            `yaml:"instructions"`
 	Type         Kind              `yaml:"type"`
-	NoulLimit    *float64          `yaml:"noulLimit"`
-	Choices      map[string]string `yaml:"choices"`
-	ViolatesWhen string            `yaml:"violatesWhen"`
-	Scores       []string          `yaml:"scores"`
-	ScoreLimit   *int              `yaml:"scoreLimit"`
+	NoulLimit    *float64          `yaml:"noulLimit,omitempty"`
+	Choices      map[string]string `yaml:"choices,omitempty"`
+	ViolatesWhen string            `yaml:"violatesWhen,omitempty"`
+	Scores       []string          `yaml:"scores,omitempty"`
+	ScoreLimit   *int              `yaml:"scoreLimit,omitempty"`
 }
 
 func Load(path string) (File, error) {
@@ -53,6 +53,10 @@ func Parse(data []byte) (File, error) {
 		return File{}, err
 	}
 	return file, nil
+}
+
+func Marshal(file File) ([]byte, error) {
+	return yaml.Marshal(&file)
 }
 
 func (f File) validate() error {
