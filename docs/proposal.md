@@ -24,6 +24,8 @@ A code review checks a diff against guidelines that live in the reviewer's memor
 | --- | --- |
 | `vet` | Judge the diff against the questions file |
 | `vet questions` | Print an example questions file |
+| `vet questions init` | Write the default questions file where vet looks for it |
+| `vet config` | Print the default config file |
 | `vet version` | Print the version |
 | `vet update` | Replace `vet` with the latest release |
 
@@ -32,12 +34,13 @@ A code review checks a diff against guidelines that live in the reviewer's memor
 | Flag | Default | Work |
 | --- | --- | --- |
 | `--base` | Detected | The git ref to compare against |
-| `--questions` | `questions.yaml` | The path of the questions file |
+| `--questions` | The config, then `questions.yaml` in the working directory | The path of the questions file, or a directory of them |
+| `--config` | `$XDG_CONFIG_HOME/vet/config.yaml` (or `~/.config/vet/config.yaml`) | The path of the config file |
 | `--json` | Off | Print the report as JSON |
 | `--exit-code` | Off | Exit 1 when the change violates a rule |
-| `--api-url` | `https://api.typesafe.ai/v1/systemone` or `TYPESAFE_API_URL` | The backend endpoint |
-| `--model` | `jev-latest` | The model name |
-| `--api-key` | `TYPESAFE_API_KEY` | The API key |
+| `--api-key` | `TYPESAFE_API_KEY`, then the config `api-key-command` | The API key |
+| `--api-url` | `TYPESAFE_API_URL`, then the config, then `https://api.typesafe.ai/v1/systemone` | The backend endpoint |
+| `--model` | The config, then `jev-latest` | The model name |
 
 The base detection tries these refs in order, and uses the first one that `git rev-parse --verify --quiet` accepts:
 

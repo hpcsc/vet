@@ -12,10 +12,12 @@ task run -- --help    # run the CLI from the source
 ```shell
 vet                                # judge the diff from the base to HEAD against questions.yaml
 vet --base origin/main             # compare against a specific base
-vet --questions my-rules.yaml      # use a different questions file
+vet --questions my-rules.yaml      # use a different questions file, or a directory of them
 vet --json                         # print the report as JSON
 vet --exit-code                    # exit 1 when the change violates a rule
 vet questions                      # print an example questions file
+vet questions init                 # write the default questions file where vet looks for it
+vet config                         # print the default config file
 ```
 
 `vet` runs the diff of a change against a file of written rules, answered by the System One model
