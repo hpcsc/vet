@@ -1,5 +1,3 @@
-// Package config reads the vet options that are not flags: the global
-// config file, the repo overlay .vet.yaml, and the built-in defaults.
 package config
 
 import (
@@ -37,8 +35,6 @@ type File struct {
 	Model         *string `yaml:"model"`
 }
 
-// Resolve returns the effective configuration, with the built-in defaults
-// under the options the files set.
 func (f File) Resolve() Config {
 	c := Default()
 	if f.APIKeyCommand != nil {
@@ -56,8 +52,6 @@ func (f File) Resolve() Config {
 	return c
 }
 
-// Merge returns f with the options over sets taking the place of the ones f
-// holds.
 func (f File) Merge(over File) File {
 	if over.APIKeyCommand != nil {
 		f.APIKeyCommand = over.APIKeyCommand
@@ -74,8 +68,6 @@ func (f File) Merge(over File) File {
 	return f
 }
 
-// Path returns the global config file: $XDG_CONFIG_HOME/vet/config.yaml or
-// ~/.config/vet/config.yaml.
 func Path(getenv func(string) string) string {
 	if dir := getenv("XDG_CONFIG_HOME"); filepath.IsAbs(dir) {
 		return filepath.Join(dir, "vet", "config.yaml")
@@ -86,7 +78,6 @@ func Path(getenv func(string) string) string {
 	return ""
 }
 
-// QuestionsPath returns the default global questions file, next to Path.
 func QuestionsPath(getenv func(string) string) string {
 	if dir := getenv("XDG_CONFIG_HOME"); filepath.IsAbs(dir) {
 		return filepath.Join(dir, "vet", "questions.yaml")

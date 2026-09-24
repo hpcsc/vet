@@ -88,8 +88,6 @@ func writeDefaultQuestions(cmd *cli.Command, path string) error {
 	return err
 }
 
-// exampleQuestionsFile is the printed example: a rule of each type, with the
-// choices the log guideline and the database migration share.
 func exampleQuestionsFile() questions.File {
 	return questions.File{
 		Version: 1,

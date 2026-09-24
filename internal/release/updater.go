@@ -27,8 +27,7 @@ type releases interface {
 	Download(ctx context.Context, a Asset, progress func(done, total int64)) ([]byte, error)
 }
 
-// Channel names the releases that an update takes. An update installs the
-// latest of its channel, also when that is older than the current build.
+// an update installs the latest of its channel, also when that is older than the current build.
 type Channel string
 
 const (
@@ -49,8 +48,7 @@ type Updater struct {
 	executable string
 }
 
-// NewUpdater updates the binary at executable, built as version current for
-// platform, such as "darwin-arm64".
+// platform is the OS-arch pair, such as "darwin-arm64".
 func NewUpdater(releases releases, current, platform, executable string) *Updater {
 	return &Updater{releases: releases, current: current, platform: platform, executable: executable}
 }

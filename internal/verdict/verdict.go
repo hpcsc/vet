@@ -31,8 +31,6 @@ type FileAnswers struct {
 	Answers []backend.Answer
 }
 
-// Judge turns the answers of every file into a report, checking each one
-// against its rule.
 func Judge(base string, file questions.File, files []FileAnswers) (Report, error) {
 	rules := make(map[string]questions.Rule, len(file.Rules))
 	for _, rule := range file.Rules {
@@ -79,8 +77,6 @@ func judge(rule questions.Rule, answer backend.Answer) (Row, error) {
 	return row, nil
 }
 
-// Text renders the report as a list of files with a check or a cross per
-// rule, and a summary line.
 func (r Report) Text() string {
 	var b strings.Builder
 	for _, f := range r.Files {

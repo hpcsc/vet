@@ -1,7 +1,5 @@
 package questions
 
-// Default returns the questions file a new vet setup starts from. It covers
-// every rule kind so a fresh setup is usable with no custom questions.
 func Default() (File, error) {
 	return Parse([]byte(defaultFile))
 }

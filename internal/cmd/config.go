@@ -16,9 +16,6 @@ import (
 
 const overlayName = ".vet.yaml"
 
-// resolveConfig merges the config file, when there is one, with the overlay
-// file of the working tree, when there is one. An explicit configPath makes a
-// missing file an error; otherwise a missing file means the defaults.
 func resolveConfig(ctx context.Context, repoDir, configPath string, pathOf func(string) string) (config.File, error) {
 	base, err := loadConfigFile(configPath, pathOf)
 	if err != nil {

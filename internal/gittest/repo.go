@@ -16,8 +16,6 @@ type Repo struct {
 	origin string
 }
 
-// NewWithRemote makes a clone of a bare origin on main, with one commit on the
-// origin and its HEAD set so that origin/HEAD resolves.
 func NewWithRemote(t testing.TB) *Repo {
 	t.Helper()
 	root := t.TempDir()
@@ -34,7 +32,6 @@ func NewWithRemote(t testing.TB) *Repo {
 	return r
 }
 
-// NewLocal makes a repository with one commit on main and no remote.
 func NewLocal(t testing.TB) *Repo {
 	t.Helper()
 	dir := filepath.Join(t.TempDir(), "repo")
@@ -46,7 +43,6 @@ func NewLocal(t testing.TB) *Repo {
 	return r
 }
 
-// Empty makes a repository with no commits and no remote.
 func Empty(t testing.TB) *Repo {
 	t.Helper()
 	dir := filepath.Join(t.TempDir(), "repo")

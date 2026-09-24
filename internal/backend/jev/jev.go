@@ -16,7 +16,6 @@ import (
 	"github.com/hpcsc/vet/internal/questions"
 )
 
-// maxAttempts bounds the retries the client makes before giving up.
 const maxAttempts = 6
 
 type Client struct {
@@ -131,9 +130,6 @@ func (c *Client) post(ctx context.Context, req request) (response, error) {
 	return response{}, fmt.Errorf("the backend kept answering %d", lastStatus)
 }
 
-// wait sleeps before the next attempt. It honors Retry-After in seconds when
-// the server sends it, and falls back to exponential backoff. It reports
-// false when the context ends, or when the client gave up.
 func wait(ctx context.Context, retryAfter string, attempt int) bool {
 	d, err := strconv.Atoi(retryAfter)
 	if err != nil {

@@ -18,7 +18,6 @@ func New(dir string) *Repo {
 	return &Repo{dir: dir}
 }
 
-// Toplevel returns the root directory of the working tree.
 func (r *Repo) Toplevel(ctx context.Context) (string, error) {
 	out, err := r.run(ctx, "rev-parse", "--show-toplevel")
 	if err != nil {
@@ -27,8 +26,6 @@ func (r *Repo) Toplevel(ctx context.Context) (string, error) {
 	return strings.TrimSpace(out), nil
 }
 
-// DetectBase returns the first ref that git accepts, from base first and then
-// the usual defaults. base is empty when the caller gave no --base.
 func (r *Repo) DetectBase(ctx context.Context, base string) (string, error) {
 	refs := []string{
 		base,
@@ -59,8 +56,6 @@ func (r *Repo) DetectBase(ctx context.Context, base string) (string, error) {
 	return "", fmt.Errorf("no base ref resolves (tried %s)", strings.Join(used, ", "))
 }
 
-// ChangedFiles lists the paths the head changes against base, that is the
-// destination path of a rename.
 func (r *Repo) ChangedFiles(ctx context.Context, base string) ([]string, error) {
 	out, err := r.run(ctx, "diff", "--raw", "-z", "--no-abbrev", "-M", base, "HEAD")
 	if err != nil {

@@ -6,15 +6,11 @@ import (
 	"github.com/hpcsc/vet/internal/questions"
 )
 
-// State is one changed file that a backend judges.
 type State struct {
 	Path string
 	Diff string
 }
 
-// Answer holds the verdict of one rule for one state. Exactly one of Noul,
-// Choice or Score is set, matching the kind of the rule the answer is for.
-// Confidence is set when the backend reports one; a noul answer has none.
 type Answer struct {
 	Rule       string
 	Noul       *float64
@@ -23,15 +19,12 @@ type Answer struct {
 	Confidence *float64
 }
 
-// Backend answers the questions for one changed file.
 type Backend interface {
 	Ask(ctx context.Context, state State, questions questions.File) ([]Answer, error)
 }
 
 var _ Backend = (*Fake)(nil)
 
-// Fake records the states it was asked and returns what WithAnswers or
-// WithError configured. It implements the Backend contract for tests.
 type Fake struct {
 	answers []Answer
 	err     error

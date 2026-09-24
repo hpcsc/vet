@@ -5,9 +5,6 @@ import (
 	"io"
 )
 
-// Line shows work that takes time, such as a download, on one line. On a
-// terminal it draws the line again as the work goes on. Elsewhere it writes the
-// label one time, so that a log gets no partial lines.
 type Line struct {
 	w        io.Writer
 	terminal bool
@@ -25,8 +22,7 @@ func Start(w io.Writer, terminal bool, label string) *Line {
 	return l
 }
 
-// Bytes shows the bytes that have arrived, of total. total is -1 when it is
-// not known.
+// total -1 means the server sends no size.
 func (l *Line) Bytes(done, total int64) {
 	if !l.terminal {
 		return
