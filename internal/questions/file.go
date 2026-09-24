@@ -12,6 +12,7 @@ import (
 
 type File struct {
 	Version int    `yaml:"version"`
+	Name    string `yaml:"name,omitempty"`
 	Context string `yaml:"context,omitempty"`
 	Rules   []Rule `yaml:"rules"`
 }
@@ -28,7 +29,21 @@ func Load(path string) (File, error) {
 	if err != nil {
 		return File{}, err
 	}
-	return Parse(data, filepath.Dir(path))
+	file, err := Parse(data, filepath.Dir(path))
+	if err != nil {
+		return File{}, err
+	}
+	for i := range file.Rules {
+		file.Rules[i].Source = nameOf(file.Name, filepath.Base(path))
+	}
+	return file, nil
+}
+
+func nameOf(name, fallback string) string {
+	if name != "" {
+		return name
+	}
+	return fallback
 }
 
 func loadDirectory(path string) (File, error) {
@@ -56,11 +71,12 @@ func loadDirectory(path string) (File, error) {
 		if err != nil {
 			return File{}, fmt.Errorf("%s: %w", name, err)
 		}
-		for _, rule := range parsed.Rules {
-			if _, ok := seen[rule.ID]; ok {
-				return File{}, fmt.Errorf("rule %s appears in more than one questions file", rule.ID)
+		for i := range parsed.Rules {
+			parsed.Rules[i].Source = nameOf(parsed.Name, name)
+			if _, ok := seen[parsed.Rules[i].ID]; ok {
+				return File{}, fmt.Errorf("rule %s appears in more than one questions file", parsed.Rules[i].ID)
 			}
-			seen[rule.ID] = struct{}{}
+			seen[parsed.Rules[i].ID] = struct{}{}
 		}
 		if _, ok := seenContexts[parsed.Context]; !ok {
 			seenContexts[parsed.Context] = struct{}{}

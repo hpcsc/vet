@@ -5,6 +5,7 @@ func Default() (File, error) {
 }
 
 const builtinFile = `version: 1
+name: example
 context: |
   These guidelines apply to every rule below.
   - The codebase logs with slog, never to stdout.

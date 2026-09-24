@@ -14,6 +14,7 @@ type Rule struct {
 	ViolatesWhen string            `yaml:"violatesWhen,omitempty"`
 	Scores       []string          `yaml:"scores,omitempty"`
 	ScoreLimit   *int              `yaml:"scoreLimit,omitempty"`
+	Source       string            `yaml:"-"`
 }
 
 func (r Rule) validate() error {

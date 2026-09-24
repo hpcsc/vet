@@ -158,6 +158,42 @@ rules:
 			require.Equal(t, "only-rule", file.Rules[0].ID)
 		})
 
+		t.Run("labels a single file's rules with its name field, or the file name", func(t *testing.T) {
+			t.Run("a file that names itself uses that name", func(t *testing.T) {
+				dir := t.TempDir()
+				path := filepath.Join(dir, "rules.yaml")
+				write(t, dir, "rules.yaml", "version: 1\nname: the rules\nrules:\n  - id: only-rule\n    instructions: does it?\n    type: noul\n    noulLimit: 0.5")
+
+				file, err := Load(path)
+
+				require.NoError(t, err)
+				require.Equal(t, "the rules", file.Rules[0].Source)
+			})
+
+			t.Run("a file without a name uses the file name", func(t *testing.T) {
+				dir := t.TempDir()
+				path := filepath.Join(dir, "rules.yaml")
+				write(t, dir, "rules.yaml", "version: 1\nrules:\n  - id: only-rule\n    instructions: does it?\n    type: noul\n    noulLimit: 0.5")
+
+				file, err := Load(path)
+
+				require.NoError(t, err)
+				require.Equal(t, "rules.yaml", file.Rules[0].Source)
+			})
+
+			t.Run("a directory file's rules use the file's own name", func(t *testing.T) {
+				dir := t.TempDir()
+				write(t, dir, "named.yaml", "version: 1\nname: naming rules\nrules:\n  - id: first\n    instructions: does it?\n    type: noul\n    noulLimit: 0.5")
+				write(t, dir, "plain.yaml", "version: 1\nrules:\n  - id: second\n    instructions: how good?\n    type: noul\n    noulLimit: 0.5")
+
+				file, err := Load(dir)
+
+				require.NoError(t, err)
+				require.Equal(t, "naming rules", file.Rules[0].Source)
+				require.Equal(t, "plain.yaml", file.Rules[1].Source)
+			})
+		})
+
 		t.Run("a directory merges every questions file in filename order", func(t *testing.T) {
 			dir := t.TempDir()
 			write(t, dir, "a.yaml", "version: 1\nrules:\n  - id: first\n    instructions: does it?\n    type: noul\n    noulLimit: 0.5")
