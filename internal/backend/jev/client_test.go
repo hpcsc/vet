@@ -176,6 +176,24 @@ rules:
 			require.Equal(t, 2, *answers[2].Score)
 		})
 
+		t.Run("reads the probabilities and legend the backend returns", func(t *testing.T) {
+			server := newServer(t, `{
+				"no-flag-field":{"type":"noul","noul":0.2},
+				"database-migration":{"type":"choice","choice":"migrates","probabilities":{"no-db":0.0,"uses-db":0.05,"migrates":0.95},"confidence":0.92},
+				"log-guideline":{"type":"score","score":2,"probabilities":{"0":0.05,"1":0.3,"2":0.65},"legend":{"0":"first","1":"second","2":"third"},"confidence":0.78}
+			}`, nil)
+			defer server.Close()
+
+			answers, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, questionsFile)
+
+			require.NoError(t, err)
+			require.Len(t, answers, 3)
+			require.Equal(t, map[string]float64{"no-db": 0.0, "uses-db": 0.05, "migrates": 0.95}, answers[1].Probabilities)
+			require.Empty(t, answers[1].Legend)
+			require.Equal(t, map[string]float64{"0": 0.05, "1": 0.3, "2": 0.65}, answers[2].Probabilities)
+			require.Equal(t, map[string]string{"0": "first", "1": "second", "2": "third"}, answers[2].Legend)
+		})
+
 		t.Run("rounds a fractional score down", func(t *testing.T) {
 			scoreFile := buildQuestions(t, "score", `    scores:
       - first

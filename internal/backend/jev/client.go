@@ -49,11 +49,13 @@ type response struct {
 }
 
 type answer struct {
-	Type       questions.Kind `json:"type"`
-	Noul       *float64       `json:"noul"`
-	Choice     *string        `json:"choice"`
-	Score      *float64       `json:"score"`
-	Confidence *float64       `json:"confidence"`
+	Type          questions.Kind     `json:"type"`
+	Noul          *float64           `json:"noul"`
+	Choice        *string            `json:"choice"`
+	Score         *float64           `json:"score"`
+	Confidence    *float64           `json:"confidence"`
+	Probabilities map[string]float64 `json:"probabilities,omitempty"`
+	Legend        map[string]string  `json:"legend,omitempty"`
 }
 
 func (c *Client) Ask(ctx context.Context, file diff.File, q questions.File) ([]backend.Answer, error) {
@@ -170,7 +172,7 @@ func (c *Client) answersInto(resp response, file questions.File) ([]backend.Answ
 }
 
 func answerFor(rule questions.Rule, raw answer) (backend.Answer, error) {
-	a := backend.Answer{Rule: rule.ID, Confidence: nil}
+	a := backend.Answer{Rule: rule.ID, Confidence: nil, Probabilities: raw.Probabilities, Legend: raw.Legend}
 	switch rule.Type {
 	case questions.Noul:
 		if raw.Noul == nil {
