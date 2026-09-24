@@ -51,6 +51,7 @@ The base detection tries these refs in order, and uses the first one that `git r
 4. `origin/master`
 5. `main`
 6. `master`
+7. `HEAD~1`
 
 The tool reads the API key from `TYPESAFE_API_KEY` when the flag is empty. It fails with a clear message when no key exists.
 

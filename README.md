@@ -117,7 +117,7 @@ The reference works in both places: a `@` `context` and a `@` `instructions` eac
 so does every questions file when you pass a directory of them.
 
 `docs/proposal.md` specifies the file format in full. The base is
-`--base` when given, else `origin/HEAD`, then `origin/main`, `origin/master`, `main`, and `master`.
+`--base` when given, else `origin/HEAD`, then `origin/main`, `origin/master`, `main`, `master`, and `HEAD~1`.
 
 ## Version and update
 

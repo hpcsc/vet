@@ -84,6 +84,17 @@ func TestRepo(t *testing.T) {
 			require.Equal(t, "master", base)
 		})
 
+		t.Run("falls back to HEAD~1 when no branch resolves", func(t *testing.T) {
+			repo := gittest.NewLocal(t)
+			repo.Git("checkout", "-q", "--detach")
+			repo.Git("update-ref", "-d", "refs/heads/main")
+
+			base, err := New(repo.Dir).DetectBase(ctx, "")
+
+			require.NoError(t, err)
+			require.Equal(t, "HEAD~1", base)
+		})
+
 		t.Run("fails when no base resolves", func(t *testing.T) {
 			repo := gittest.Empty(t)
 

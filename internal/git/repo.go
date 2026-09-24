@@ -34,6 +34,7 @@ func (r *Repo) DetectBase(ctx context.Context, base string) (string, error) {
 		"origin/master",
 		"main",
 		"master",
+		"HEAD~1",
 	}
 	for _, ref := range refs {
 		if ref == "" {
