@@ -55,10 +55,13 @@ The tool reads the API key from `TYPESAFE_API_KEY` when the flag is empty. It fa
 
 ### The questions file
 
-The file is YAML. It has a version and a list of rules. A rule has one of three types. The example below uses all three.
+The file is YAML. It has a version and a list of rules. The rules share an optional `context`, prose that the model sees above every question. A rule has one of three types. The example below uses all three.
 
 ```yaml
 version: 1
+context: |
+  The change is in a Go codebase. General guidelines:
+  - Log with slog, never to stdout.
 rules:
   - id: no-flag-field
     instructions: |
@@ -87,6 +90,18 @@ rules:
     scoreLimit: 2
 ```
 
+`context` and `instructions` also accept a file reference: when the value begins with `@`, the tool reads the file and uses its content instead. The path is relative to the questions file, and a leading `~` expands to the home directory. This lets a rule point at the guideline it measures instead of copying it, and lets one questions file reuse the same guideline files as the repository's other tooling.
+
+```yaml
+version: 1
+context: "@~/.config/ai/guidelines/go/logging.md"
+rules:
+  - id: log-guideline
+    instructions: "@~/.config/ai/guidelines/go/logging.md"
+    type: score
+    ...
+```
+
 The three types:
 
 | Type | Field | Answer | Violation |
@@ -98,6 +113,7 @@ The three types:
 The tool validates the file before it asks the backend. It rejects a file when:
 
 - A rule has no id, or empty instructions.
+- A `@` reference names a file the tool cannot read.
 - `noulLimit` is outside 0 to 1.
 - `violatesWhen` names a key that is not in `choices`.
 - `scoreLimit` is outside the `scores` range.
