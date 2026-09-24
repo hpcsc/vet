@@ -3,13 +3,9 @@ package backend
 import (
 	"context"
 
+	"github.com/hpcsc/vet/internal/diff"
 	"github.com/hpcsc/vet/internal/questions"
 )
-
-type State struct {
-	Path string
-	Diff string
-}
 
 type Answer struct {
 	Rule       string
@@ -20,7 +16,7 @@ type Answer struct {
 }
 
 type Judge interface {
-	Ask(ctx context.Context, state State, questions questions.File) ([]Answer, error)
+	Ask(ctx context.Context, file diff.File, q questions.File) ([]Answer, error)
 }
 
 var _ Judge = (*Fake)(nil)
@@ -28,7 +24,7 @@ var _ Judge = (*Fake)(nil)
 type Fake struct {
 	answers []Answer
 	err     error
-	states  []State
+	files   []diff.File
 }
 
 func NewFake() *Fake {
@@ -45,11 +41,11 @@ func (f *Fake) WithError(err error) *Fake {
 	return f
 }
 
-func (f *Fake) Ask(_ context.Context, state State, _ questions.File) ([]Answer, error) {
-	f.states = append(f.states, state)
+func (f *Fake) Ask(_ context.Context, file diff.File, _ questions.File) ([]Answer, error) {
+	f.files = append(f.files, file)
 	return f.answers, f.err
 }
 
-func (f *Fake) States() []State {
-	return f.states
+func (f *Fake) Files() []diff.File {
+	return f.files
 }

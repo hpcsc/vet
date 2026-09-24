@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hpcsc/vet/internal/backend"
+	"github.com/hpcsc/vet/internal/diff"
 	"github.com/hpcsc/vet/internal/questions"
 )
 
@@ -55,8 +56,8 @@ type answer struct {
 	Confidence *float64       `json:"confidence"`
 }
 
-func (c *Client) Ask(ctx context.Context, state backend.State, file questions.File) ([]backend.Answer, error) {
-	req, err := c.request(state, file)
+func (c *Client) Ask(ctx context.Context, file diff.File, q questions.File) ([]backend.Answer, error) {
+	req, err := c.request(file, q)
 	if err != nil {
 		return nil, err
 	}
@@ -64,12 +65,12 @@ func (c *Client) Ask(ctx context.Context, state backend.State, file questions.Fi
 	if err != nil {
 		return nil, err
 	}
-	return c.answersInto(resp, file)
+	return c.answersInto(resp, q)
 }
 
-func (c *Client) request(state backend.State, file questions.File) (request, error) {
-	questionsMap := make(map[string]question, len(file.Rules))
-	for _, rule := range file.Rules {
+func (c *Client) request(file diff.File, rules questions.File) (request, error) {
+	questionsMap := make(map[string]question, len(rules.Rules))
+	for _, rule := range rules.Rules {
 		q := question{Type: rule.Type, Instructions: rule.Instructions}
 		switch rule.Type {
 		case questions.Noul:
@@ -83,7 +84,7 @@ func (c *Client) request(state backend.State, file questions.File) (request, err
 		questionsMap[rule.ID] = q
 	}
 	return request{
-		State:     "File: " + state.Path + "\n\n" + state.Diff,
+		State:     "File: " + file.Path + "\n\n" + file.Diff,
 		Model:     c.model,
 		Questions: questionsMap,
 	}, nil

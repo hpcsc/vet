@@ -211,8 +211,8 @@ rules:
 		})
 	})
 
-	t.Run("states the backend sees", func(t *testing.T) {
-		t.Run("one state per changed file, with its path and diff", func(t *testing.T) {
+	t.Run("the files the backend sees", func(t *testing.T) {
+		t.Run("one file per changed file, with its path and diff", func(t *testing.T) {
 			repo := gittest.NewWithRemote(t)
 			repo.Commit("change.txt", "one\n", "Change a file")
 			fake := backend.NewFake().WithAnswers(cleanAnswers...)
@@ -229,10 +229,10 @@ rules:
 			err := j.run(ctx)
 
 			require.NoError(t, err)
-			states := fake.States()
-			require.Len(t, states, 1)
-			require.Equal(t, "change.txt", states[0].Path)
-			require.Contains(t, states[0].Diff, "@@")
+			files := fake.Files()
+			require.Len(t, files, 1)
+			require.Equal(t, "change.txt", files[0].Path)
+			require.Contains(t, files[0].Diff, "@@")
 		})
 	})
 }

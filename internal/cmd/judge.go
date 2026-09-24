@@ -73,7 +73,7 @@ func (j *judge) askAll(ctx context.Context, file questions.File, files []diff.Fi
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			answers, err := j.backend.Ask(ctx, backend.State{Path: f.Path, Diff: f.Diff}, file)
+			answers, err := j.backend.Ask(ctx, f, file)
 			results[i] = verdict.FileAnswers{Path: f.Path, Answers: answers}
 			errs[i] = err
 		}(i, f)
