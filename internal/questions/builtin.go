@@ -11,12 +11,14 @@ context: |
   - The codebase logs with slog, never to stdout.
 rules:
   - id: no-flag-field
+    description: The change adds a flag or knob that toggles behaviour.
     instructions: |
       Does the change add a flag or knob that toggles behaviour?
     type: noul
     noulLimit: 0.5
 
   - id: touches-database
+    description: How the change touches the database.
     instructions: |
       Which option best describes how the change touches the database?
     type: choice
@@ -27,6 +29,7 @@ rules:
     violatesWhen: migrates
 
   - id: follows-logging-guideline
+    description: How well the change follows the logging guideline.
     instructions: |
       Rate how well the change follows the logging guideline.
     type: score

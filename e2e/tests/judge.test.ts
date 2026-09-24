@@ -9,10 +9,12 @@ const questionsFile = `version: 1
 name: the rules
 rules:
   - id: no-flag-field
+    description: The change adds a flag field to the request struct.
     instructions: The change adds a flag field to the request struct.
     type: noul
     noulLimit: 0.5
   - id: database-migration
+    description: How the change touches the database.
     instructions: Which option describes the change best?
     type: choice
     choices:
@@ -21,6 +23,7 @@ rules:
       migrates: The change alters the schema.
     violatesWhen: migrates
   - id: log-guideline
+    description: How well the change follows the logging guideline.
     instructions: Rate how the change follows the logging guideline.
     type: score
     scores:
@@ -104,7 +107,7 @@ describe('the judge', () => {
 
     expect(result.status).toBe(0)
     expect(result.stdout).toContain('the rules')
-    expect(result.stdout).toContain('✓ no-flag-field: 0.2')
+    expect(result.stdout).toContain('✓ The change adds a flag field to the request struct.: 0.2')
     expect(result.stdout).toContain('The change violates no rule.')
   })
 
@@ -116,9 +119,9 @@ describe('the judge', () => {
     const result = await runCli(repo, judgeArgs(api))
 
     expect(result.status).toBe(0)
-    expect(result.stdout).toContain('✗ database-migration: migrates (The change alters the schema.) (confidence 0.95)')
+    expect(result.stdout).toContain('✗ How the change touches the database.: migrates (The change alters the schema.) (confidence 0.95)')
     expect(result.stdout).toContain('The change violates 3 rules.')
-    expect(result.stdout).toContain('- database-migration in change.txt (the rules)')
+    expect(result.stdout).toContain('- How the change touches the database. in change.txt (the rules)')
   })
 
   it('exits 1 when a change violates a rule and --exit-code is on', async () => {
@@ -147,10 +150,16 @@ describe('the judge', () => {
       {
         name: 'the rules',
         answers: [
-          { path: 'change.txt', rule: 'no-flag-field', value: 0.2 },
+          {
+            path: 'change.txt',
+            rule: 'no-flag-field',
+            description: 'The change adds a flag field to the request struct.',
+            value: 0.2,
+          },
           {
             path: 'change.txt',
             rule: 'database-migration',
+            description: 'How the change touches the database.',
             value: 'uses-db',
             label: 'The change reads or writes the database.',
             confidence: 0.9,
@@ -159,6 +168,7 @@ describe('the judge', () => {
           {
             path: 'change.txt',
             rule: 'log-guideline',
+            description: 'How well the change follows the logging guideline.',
             value: 1,
             label: 'second',
             confidence: 0.8,

@@ -103,12 +103,14 @@ func exampleQuestionsFile() questions.File {
 		Rules: []questions.Rule{
 			{
 				ID:           "no-flag-field",
+				Description:  "The change adds a flag field to the request struct.",
 				Instructions: "The change adds a flag field to the request struct.",
 				Type:         questions.Noul,
 				NoulLimit:    pointerTo(0.5),
 			},
 			{
 				ID:           "database-migration",
+				Description:  "How the change touches the database.",
 				Instructions: "Which option describes the change best?",
 				Type:         questions.Choice,
 				Choices: map[string]string{
@@ -120,6 +122,7 @@ func exampleQuestionsFile() questions.File {
 			},
 			{
 				ID:           "log-guideline",
+				Description:  "How well the change follows the logging guideline.",
 				Instructions: "Rate how the change follows the logging guideline.",
 				Type:         questions.Score,
 				Scores:       []string{"first", "second", "third"},

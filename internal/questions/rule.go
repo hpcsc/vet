@@ -7,6 +7,7 @@ import (
 
 type Rule struct {
 	ID           string            `yaml:"id"`
+	Description  string            `yaml:"description,omitempty"`
 	Instructions string            `yaml:"instructions"`
 	Type         Kind              `yaml:"type"`
 	NoulLimit    *float64          `yaml:"noulLimit,omitempty"`

@@ -31,10 +31,12 @@ func TestJudge(t *testing.T) {
 	file := mustParse(t, `version: 1
 rules:
   - id: no-flag-field
+    description: the change adds a flag field
     instructions: adds a flag field
     type: noul
     noulLimit: 0.5
   - id: database-migration
+    description: how the change touches the database
     instructions: describes the change
     type: choice
     choices:
@@ -43,6 +45,7 @@ rules:
       migrates: alters the schema
     violatesWhen: migrates
   - id: log-guideline
+    description: how well the change follows the logging guideline
     instructions: rates the change
     type: score
     scores:
@@ -77,21 +80,21 @@ rules:
 		t.Run("a value below the limit violates nothing", func(t *testing.T) {
 			report := judge(t, []backend.Answer{{Rule: "no-flag-field", Noul: noul(0.2)}})
 
-			require.Equal(t, Row{Rule: "no-flag-field", Path: "internal/repo.go", Value: 0.2}, row(t, report))
+			require.Equal(t, Row{Rule: "no-flag-field", Description: "the change adds a flag field", Path: "internal/repo.go", Value: 0.2}, row(t, report))
 			require.Equal(t, 0, report.Violations)
 		})
 
 		t.Run("a value at the limit violates the rule", func(t *testing.T) {
 			report := judge(t, []backend.Answer{{Rule: "no-flag-field", Noul: noul(0.5)}})
 
-			require.Equal(t, Row{Rule: "no-flag-field", Path: "internal/repo.go", Value: 0.5, Violates: true}, row(t, report))
+			require.Equal(t, Row{Rule: "no-flag-field", Description: "the change adds a flag field", Path: "internal/repo.go", Value: 0.5, Violates: true}, row(t, report))
 			require.Equal(t, 1, report.Violations)
 		})
 
 		t.Run("a value above the limit violates the rule", func(t *testing.T) {
 			report := judge(t, []backend.Answer{{Rule: "no-flag-field", Noul: noul(0.8)}})
 
-			require.Equal(t, Row{Rule: "no-flag-field", Path: "internal/repo.go", Value: 0.8, Violates: true}, row(t, report))
+			require.Equal(t, Row{Rule: "no-flag-field", Description: "the change adds a flag field", Path: "internal/repo.go", Value: 0.8, Violates: true}, row(t, report))
 			require.Equal(t, 1, report.Violations)
 		})
 
@@ -99,7 +102,7 @@ rules:
 			raw, err := json.Marshal(row(t, judge(t, []backend.Answer{{Rule: "no-flag-field", Noul: noul(0.2)}})))
 
 			require.NoError(t, err)
-			require.JSONEq(t, `{"rule":"no-flag-field","path":"internal/repo.go","value":0.2}`, string(raw))
+			require.JSONEq(t, `{"rule":"no-flag-field","description":"the change adds a flag field","path":"internal/repo.go","value":0.2}`, string(raw))
 		})
 	})
 
@@ -107,14 +110,14 @@ rules:
 		t.Run("the violatesWhen answer violates the rule and carries the choice label", func(t *testing.T) {
 			report := judge(t, []backend.Answer{{Rule: "database-migration", Choice: choice("migrates"), Confidence: confidence(0.92)}})
 
-			require.Equal(t, Row{Rule: "database-migration", Path: "internal/repo.go", Value: "migrates", Label: "alters the schema", Violates: true, Confidence: confidence(0.92)}, row(t, report))
+			require.Equal(t, Row{Rule: "database-migration", Description: "how the change touches the database", Path: "internal/repo.go", Value: "migrates", Label: "alters the schema", Violates: true, Confidence: confidence(0.92)}, row(t, report))
 			require.Equal(t, 1, report.Violations)
 		})
 
 		t.Run("another answer violates nothing", func(t *testing.T) {
 			report := judge(t, []backend.Answer{{Rule: "database-migration", Choice: choice("uses-db"), Confidence: confidence(0.95)}})
 
-			require.Equal(t, Row{Rule: "database-migration", Path: "internal/repo.go", Value: "uses-db", Label: "reads or writes the database", Confidence: confidence(0.95)}, row(t, report))
+			require.Equal(t, Row{Rule: "database-migration", Description: "how the change touches the database", Path: "internal/repo.go", Value: "uses-db", Label: "reads or writes the database", Confidence: confidence(0.95)}, row(t, report))
 			require.Equal(t, 0, report.Violations)
 		})
 
@@ -130,14 +133,14 @@ rules:
 		t.Run("a level at the limit violates the rule and carries the score label", func(t *testing.T) {
 			report := judge(t, []backend.Answer{{Rule: "log-guideline", Score: score(2)}})
 
-			require.Equal(t, Row{Rule: "log-guideline", Path: "internal/repo.go", Value: 2, Label: "prohibited logging", Violates: true}, row(t, report))
+			require.Equal(t, Row{Rule: "log-guideline", Description: "how well the change follows the logging guideline", Path: "internal/repo.go", Value: 2, Label: "prohibited logging", Violates: true}, row(t, report))
 			require.Equal(t, 1, report.Violations)
 		})
 
 		t.Run("a level below the limit violates nothing", func(t *testing.T) {
 			report := judge(t, []backend.Answer{{Rule: "log-guideline", Score: score(1)}})
 
-			require.Equal(t, Row{Rule: "log-guideline", Path: "internal/repo.go", Value: 1, Label: "logs to stdout"}, row(t, report))
+			require.Equal(t, Row{Rule: "log-guideline", Description: "how well the change follows the logging guideline", Path: "internal/repo.go", Value: 1, Label: "logs to stdout"}, row(t, report))
 			require.Equal(t, 0, report.Violations)
 		})
 
@@ -226,10 +229,10 @@ rules:
 			text := report.Text()
 
 			require.Contains(t, text, "a.go")
-			require.Contains(t, text, "  ✓ no-flag-field: 0.2")
-			require.Contains(t, text, "  ✗ database-migration: migrates (alters the schema) (confidence 0.9)")
+			require.Contains(t, text, "  ✓ the change adds a flag field: 0.2")
+			require.Contains(t, text, "  ✗ how the change touches the database: migrates (alters the schema) (confidence 0.9)")
 			require.Contains(t, text, "b.go")
-			require.Contains(t, text, "  ✗ log-guideline: 2 (prohibited logging)")
+			require.Contains(t, text, "  ✗ how well the change follows the logging guideline: 2 (prohibited logging)")
 			require.Contains(t, text, "The change violates 2 rules.")
 		})
 
@@ -243,7 +246,7 @@ rules:
 			require.NoError(t, err)
 			text := report.Text()
 
-			require.Contains(t, text, "  ✗ log-guideline: 2 (third)")
+			require.Contains(t, text, "  ✗ how well the change follows the logging guideline: 2 (third)")
 			require.NotContains(t, text, "second")
 		})
 
@@ -259,7 +262,7 @@ rules:
 			row := row(t, report)
 			raw, err := json.Marshal(row)
 			require.NoError(t, err)
-			require.JSONEq(t, `{"rule":"log-guideline","path":"a.go","value":2,"label":"third","violates":true,"probabilities":{"0":0.05,"1":0.3,"2":0.65},"legend":{"0":"first","1":"second","2":"third"}}`, string(raw))
+			require.JSONEq(t, `{"rule":"log-guideline","description":"how well the change follows the logging guideline","path":"a.go","value":2,"label":"third","violates":true,"probabilities":{"0":0.05,"1":0.3,"2":0.65},"legend":{"0":"first","1":"second","2":"third"}}`, string(raw))
 		})
 
 		t.Run("lists every violated rule with its file in the summary", func(t *testing.T) {
@@ -271,8 +274,8 @@ rules:
 			require.NoError(t, err)
 			text := report.Text()
 
-			require.Contains(t, text, "  - database-migration in a.go")
-			require.Contains(t, text, "  - log-guideline in b.go")
+			require.Contains(t, text, "  - how the change touches the database in a.go")
+			require.Contains(t, text, "  - how well the change follows the logging guideline in b.go")
 		})
 
 		t.Run("groups the rows under the questions file name", func(t *testing.T) {
@@ -289,6 +292,17 @@ rules:
 			require.Contains(t, text, "  - no-flag-field in a.go (the flags)")
 		})
 
+		t.Run("renders the rule id when a rule has no description", func(t *testing.T) {
+			report, err := Judge("origin/main", groupedFile, []backend.Answer{
+				{Path: "a.go", Rule: "no-flag-field", Noul: noul(0.9)},
+			})
+			require.NoError(t, err)
+			text := report.Text()
+
+			require.Contains(t, text, "  ✗ no-flag-field: 0.9")
+			require.Contains(t, text, "  - no-flag-field in a.go (the flags)")
+		})
+
 		t.Run("says so when the change violates no rule", func(t *testing.T) {
 			report, err := Judge("origin/main", file, []backend.Answer{
 				{Path: "a.go", Rule: "no-flag-field", Noul: noul(0.1)},
@@ -296,7 +310,7 @@ rules:
 			require.NoError(t, err)
 			text := report.Text()
 
-			require.Contains(t, text, "  ✓ no-flag-field: 0.1")
+			require.Contains(t, text, "  ✓ the change adds a flag field: 0.1")
 			require.Contains(t, text, "The change violates no rule.")
 		})
 	})

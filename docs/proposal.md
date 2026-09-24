@@ -65,12 +65,14 @@ context: |
   - Log with slog, never to stdout.
 rules:
   - id: no-flag-field
+    description: The change adds a flag or knob that toggles behaviour.
     instructions: |
       The change adds a flag field to the request struct.
     type: noul
     noulLimit: 0.5
 
   - id: database-migration
+    description: How the change touches the database.
     instructions: |
       Which option describes the change best?
     type: choice
@@ -81,6 +83,7 @@ rules:
     violatesWhen: migrates
 
   - id: log-guideline
+    description: How well the change follows the logging guideline.
     instructions: |
       Rate how well the change follows the logging guideline.
     type: score
@@ -90,6 +93,8 @@ rules:
       - Adds or keeps prohibited logging
     scoreLimit: 2
 ```
+
+Each rule has an `id`, the `instructions` it answers, a `type`, and the fields that type needs. An optional `description` labels the rule in the report, and the `id` stands in when it is missing.
 
 `context` and `instructions` also accept a file reference: when the value begins with `@`, the tool reads the file and uses its content instead. The path is relative to the questions file, and a leading `~` expands to the home directory. This lets a rule point at the guideline it measures instead of copying it, and lets one questions file reuse the same guideline files as the repository's other tooling.
 
@@ -191,10 +196,11 @@ Retry policy:
     {
       "name": "naming-patterns.yaml",
       "answers": [
-        { "path": "internal/repo.go", "rule": "no-flag-field", "value": 0.2 },
+        { "path": "internal/repo.go", "rule": "no-flag-field", "description": "The change adds a flag field to the request struct.", "value": 0.2 },
         {
           "path": "internal/repo.go",
           "rule": "database-migration",
+          "description": "How the change touches the database.",
           "value": "migrates",
           "violates": true,
           "confidence": 0.92
@@ -212,7 +218,7 @@ A group holds the rows of one questions file. When you pass a directory of quest
 - `choice`: the answer equals `violatesWhen`.
 - `score`: the rounded answer is greater than or equal to `scoreLimit`.
 
-A `noul` answer has no confidence in the Jev response, so its row omits it. The text report shows `check` and `cross` marks per rule, and a summary that names every violated rule with the file and the questions file it comes from.
+A `noul` answer has no confidence in the Jev response, so its row omits it. The text report shows `check` and `cross` marks per rule, and a summary that names every violated rule with the file and the questions file it comes from. A rule with a `description` renders it in place of the `id`; a rule without one renders the `id`.
 
 ### Exit codes
 

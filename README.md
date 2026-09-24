@@ -74,7 +74,8 @@ When none of the three is set, `vet` fails and says how to provide a key.
 
 `vet` judges the diff against a YAML file of rules. The file has a `version` and a list of `rules`; an
 optional `name` labels it in the report; a shared `context` above the rules is prose the model sees before
-every question. Each rule has an `id`, the `instructions` it answers, a `type`, and the fields that type needs:
+every question. Each rule has an `id`, the `instructions` it answers, a `type`, and the fields that type needs.
+An optional `description` labels the rule in the report, and the `id` stands in when it is missing:
 
 | Type | Fields | Answer | Violation |
 | --- | --- | --- | --- |
@@ -89,6 +90,7 @@ context: |
   - Log with slog, never to stdout.
 rules:
   - id: no-flag-field
+    description: The change adds a flag or knob that toggles behaviour.
     instructions: The change adds a flag field to the request struct.
     type: noul
     noulLimit: 0.5

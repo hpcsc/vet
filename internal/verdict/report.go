@@ -11,6 +11,7 @@ import (
 
 type Row struct {
 	Rule          string             `json:"rule"`
+	Description   string             `json:"description,omitempty"`
 	Path          string             `json:"path"`
 	Value         any                `json:"value"`
 	Label         string             `json:"label,omitempty"`
@@ -66,6 +67,7 @@ func Judge(base string, file questions.File, answers []backend.Answer) (Report, 
 func judge(rule questions.Rule, answer backend.Answer) (Row, error) {
 	row := Row{
 		Rule:          answer.Rule,
+		Description:   rule.Description,
 		Confidence:    answer.Confidence,
 		Probabilities: answer.Probabilities,
 		Legend:        answer.Legend,
@@ -90,6 +92,13 @@ func judge(rule questions.Rule, answer backend.Answer) (Row, error) {
 		return Row{}, fmt.Errorf("rule %s has no supported type", rule.ID)
 	}
 	return row, nil
+}
+
+func (a Row) displayRule() string {
+	if a.Description != "" {
+		return a.Description
+	}
+	return a.Rule
 }
 
 func (r Report) Text() string {
@@ -117,7 +126,7 @@ func (r Report) Text() string {
 				mark = color.RedString("✗")
 			}
 			b.WriteString(prefix)
-			fmt.Fprintf(&b, "  %s %s: %v", mark, color.BlueString(a.Rule), a.Value)
+			fmt.Fprintf(&b, "  %s %s: %v", mark, color.BlueString(a.displayRule()), a.Value)
 			if a.Label != "" {
 				fmt.Fprintf(&b, " (%s)", a.Label)
 			}
@@ -143,7 +152,7 @@ func (r Report) Text() string {
 				continue
 			}
 			b.WriteString("  - ")
-			b.WriteString(color.BlueString(a.Rule))
+			b.WriteString(color.BlueString(a.displayRule()))
 			if a.Path != "" {
 				b.WriteString(" in ")
 				b.WriteString(color.YellowString(a.Path))
