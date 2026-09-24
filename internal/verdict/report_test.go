@@ -104,34 +104,48 @@ rules:
 	})
 
 	t.Run("choice", func(t *testing.T) {
-		t.Run("the violatesWhen answer violates the rule", func(t *testing.T) {
+		t.Run("the violatesWhen answer violates the rule and carries the choice label", func(t *testing.T) {
 			report := judge(t, []backend.Answer{{Rule: "database-migration", Choice: choice("migrates"), Confidence: confidence(0.92)}})
 
-			require.Equal(t, Row{Rule: "database-migration", Path: "internal/repo.go", Value: "migrates", Violates: true, Confidence: confidence(0.92)}, row(t, report))
+			require.Equal(t, Row{Rule: "database-migration", Path: "internal/repo.go", Value: "migrates", Label: "alters the schema", Violates: true, Confidence: confidence(0.92)}, row(t, report))
 			require.Equal(t, 1, report.Violations)
 		})
 
 		t.Run("another answer violates nothing", func(t *testing.T) {
 			report := judge(t, []backend.Answer{{Rule: "database-migration", Choice: choice("uses-db"), Confidence: confidence(0.95)}})
 
-			require.Equal(t, Row{Rule: "database-migration", Path: "internal/repo.go", Value: "uses-db", Confidence: confidence(0.95)}, row(t, report))
+			require.Equal(t, Row{Rule: "database-migration", Path: "internal/repo.go", Value: "uses-db", Label: "reads or writes the database", Confidence: confidence(0.95)}, row(t, report))
 			require.Equal(t, 0, report.Violations)
+		})
+
+		t.Run("the row carries the probabilities the backend gave", func(t *testing.T) {
+			probabilities := map[string]float64{"no-db": 0.0, "uses-db": 0.05, "migrates": 0.95}
+			report := judge(t, []backend.Answer{{Rule: "database-migration", Choice: choice("migrates"), Probabilities: probabilities}})
+
+			require.Equal(t, probabilities, row(t, report).Probabilities)
 		})
 	})
 
 	t.Run("score", func(t *testing.T) {
-		t.Run("a level at the limit violates the rule", func(t *testing.T) {
+		t.Run("a level at the limit violates the rule and carries the score label", func(t *testing.T) {
 			report := judge(t, []backend.Answer{{Rule: "log-guideline", Score: score(2)}})
 
-			require.Equal(t, Row{Rule: "log-guideline", Path: "internal/repo.go", Value: 2, Violates: true}, row(t, report))
+			require.Equal(t, Row{Rule: "log-guideline", Path: "internal/repo.go", Value: 2, Label: "prohibited logging", Violates: true}, row(t, report))
 			require.Equal(t, 1, report.Violations)
 		})
 
 		t.Run("a level below the limit violates nothing", func(t *testing.T) {
 			report := judge(t, []backend.Answer{{Rule: "log-guideline", Score: score(1)}})
 
-			require.Equal(t, Row{Rule: "log-guideline", Path: "internal/repo.go", Value: 1}, row(t, report))
+			require.Equal(t, Row{Rule: "log-guideline", Path: "internal/repo.go", Value: 1, Label: "logs to stdout"}, row(t, report))
 			require.Equal(t, 0, report.Violations)
+		})
+
+		t.Run("prefers the backend legend over the file labels", func(t *testing.T) {
+			legend := map[string]string{"0": "first", "1": "second", "2": "third"}
+			report := judge(t, []backend.Answer{{Rule: "log-guideline", Score: score(2), Legend: legend}})
+
+			require.Equal(t, "third", row(t, report).Label)
 		})
 	})
 
@@ -202,7 +216,7 @@ rules:
 	})
 
 	t.Run("text", func(t *testing.T) {
-		t.Run("renders each file with a check or a cross per rule", func(t *testing.T) {
+		t.Run("renders each file with a check or a cross per rule and its label", func(t *testing.T) {
 			report, err := Judge("origin/main", file, []backend.Answer{
 				{Path: "a.go", Rule: "no-flag-field", Noul: noul(0.2)},
 				{Path: "a.go", Rule: "database-migration", Choice: choice("migrates"), Confidence: confidence(0.9)},
@@ -213,10 +227,39 @@ rules:
 
 			require.Contains(t, text, "a.go")
 			require.Contains(t, text, "  ✓ no-flag-field: 0.2")
-			require.Contains(t, text, "  ✗ database-migration: migrates (confidence 0.9)")
+			require.Contains(t, text, "  ✗ database-migration: migrates (alters the schema) (confidence 0.9)")
 			require.Contains(t, text, "b.go")
-			require.Contains(t, text, "  ✗ log-guideline: 2")
+			require.Contains(t, text, "  ✗ log-guideline: 2 (prohibited logging)")
 			require.Contains(t, text, "The change violates 2 rules.")
+		})
+
+		t.Run("shows the backend legend label when the row carries one", func(t *testing.T) {
+			report, err := Judge("origin/main", file, []backend.Answer{
+				{
+					Path: "a.go", Rule: "log-guideline", Score: score(2),
+					Legend: map[string]string{"0": "first", "1": "second", "2": "third"},
+				},
+			})
+			require.NoError(t, err)
+			text := report.Text()
+
+			require.Contains(t, text, "  ✗ log-guideline: 2 (third)")
+			require.NotContains(t, text, "second")
+		})
+
+		t.Run("carries the backend probabilities in the JSON row", func(t *testing.T) {
+			report, err := Judge("origin/main", file, []backend.Answer{
+				{
+					Path: "a.go", Rule: "log-guideline", Score: score(2),
+					Probabilities: map[string]float64{"0": 0.05, "1": 0.3, "2": 0.65},
+					Legend:        map[string]string{"0": "first", "1": "second", "2": "third"},
+				},
+			})
+			require.NoError(t, err)
+			row := row(t, report)
+			raw, err := json.Marshal(row)
+			require.NoError(t, err)
+			require.JSONEq(t, `{"rule":"log-guideline","path":"a.go","value":2,"label":"third","violates":true,"probabilities":{"0":0.05,"1":0.3,"2":0.65},"legend":{"0":"first","1":"second","2":"third"}}`, string(raw))
 		})
 
 		t.Run("lists every violated rule with its file in the summary", func(t *testing.T) {

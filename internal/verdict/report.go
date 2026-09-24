@@ -9,11 +9,14 @@ import (
 )
 
 type Row struct {
-	Rule       string   `json:"rule"`
-	Path       string   `json:"path"`
-	Value      any      `json:"value"`
-	Violates   bool     `json:"violates,omitempty"`
-	Confidence *float64 `json:"confidence,omitempty"`
+	Rule          string             `json:"rule"`
+	Path          string             `json:"path"`
+	Value         any                `json:"value"`
+	Label         string             `json:"label,omitempty"`
+	Violates      bool               `json:"violates,omitempty"`
+	Confidence    *float64           `json:"confidence,omitempty"`
+	Probabilities map[string]float64 `json:"probabilities,omitempty"`
+	Legend        map[string]string  `json:"legend,omitempty"`
 }
 
 type Group struct {
@@ -60,16 +63,27 @@ func Judge(base string, file questions.File, answers []backend.Answer) (Report, 
 }
 
 func judge(rule questions.Rule, answer backend.Answer) (Row, error) {
-	row := Row{Rule: answer.Rule, Confidence: answer.Confidence}
+	row := Row{
+		Rule:          answer.Rule,
+		Confidence:    answer.Confidence,
+		Probabilities: answer.Probabilities,
+		Legend:        answer.Legend,
+	}
 	switch rule.Type {
 	case questions.Noul:
 		row.Value = *answer.Noul
 		row.Violates = row.Value.(float64) >= *rule.NoulLimit
 	case questions.Choice:
 		row.Value = *answer.Choice
+		row.Label = rule.Choices[row.Value.(string)]
 		row.Violates = row.Value.(string) == rule.ViolatesWhen
 	case questions.Score:
 		row.Value = *answer.Score
+		if label, ok := row.Legend[fmt.Sprintf("%d", row.Value)]; ok {
+			row.Label = label
+		} else if *answer.Score < len(rule.Scores) {
+			row.Label = rule.Scores[*answer.Score]
+		}
 		row.Violates = row.Value.(int) >= *rule.ScoreLimit
 	default:
 		return Row{}, fmt.Errorf("rule %s has no supported type", rule.ID)
@@ -103,6 +117,9 @@ func (r Report) Text() string {
 			}
 			b.WriteString(prefix)
 			fmt.Fprintf(&b, "  %s %s: %v", mark, a.Rule, a.Value)
+			if a.Label != "" {
+				fmt.Fprintf(&b, " (%s)", a.Label)
+			}
 			if a.Confidence != nil {
 				fmt.Fprintf(&b, " (confidence %v)", *a.Confidence)
 			}

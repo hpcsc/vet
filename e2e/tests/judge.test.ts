@@ -32,14 +32,36 @@ rules:
 
 const cleanAnswers = {
   'no-flag-field': { type: 'noul', noul: 0.2 },
-  'database-migration': { type: 'choice', choice: 'uses-db', confidence: 0.9 },
-  'log-guideline': { type: 'score', score: 1, confidence: 0.8 },
+  'database-migration': {
+    type: 'choice',
+    choice: 'uses-db',
+    probabilities: { 'no-db': 0.01, 'uses-db': 0.94, migrates: 0.05 },
+    confidence: 0.9,
+  },
+  'log-guideline': {
+    type: 'score',
+    score: 1,
+    probabilities: { '0': 0.1, '1': 0.8, '2': 0.1 },
+    legend: { '0': 'first', '1': 'second', '2': 'third' },
+    confidence: 0.8,
+  },
 }
 
 const violatingAnswers = {
   'no-flag-field': { type: 'noul', noul: 0.9 },
-  'database-migration': { type: 'choice', choice: 'migrates', confidence: 0.9 },
-  'log-guideline': { type: 'score', score: 3, confidence: 0.8 },
+  'database-migration': {
+    type: 'choice',
+    choice: 'migrates',
+    probabilities: { 'no-db': 0.0, 'uses-db': 0.1, migrates: 0.9 },
+    confidence: 0.95,
+  },
+  'log-guideline': {
+    type: 'score',
+    score: 3,
+    probabilities: { '0': 0.0, '1': 0.0, '2': 0.2, '3': 0.8 },
+    legend: { '0': 'first', '1': 'second', '2': 'third', '3': 'fourth' },
+    confidence: 0.9,
+  },
 }
 
 // fakeSystemOne answers judge requests. It checks the request asks exactly the
@@ -94,7 +116,7 @@ describe('the judge', () => {
     const result = await runCli(repo, judgeArgs(api))
 
     expect(result.status).toBe(0)
-    expect(result.stdout).toContain('✗ database-migration: migrates')
+    expect(result.stdout).toContain('✗ database-migration: migrates (The change alters the schema.) (confidence 0.95)')
     expect(result.stdout).toContain('The change violates 3 rules.')
     expect(result.stdout).toContain('- database-migration in change.txt (the rules)')
   })
@@ -126,8 +148,23 @@ describe('the judge', () => {
         name: 'the rules',
         answers: [
           { path: 'change.txt', rule: 'no-flag-field', value: 0.2 },
-          { path: 'change.txt', rule: 'database-migration', value: 'uses-db', confidence: 0.9 },
-          { path: 'change.txt', rule: 'log-guideline', value: 1, confidence: 0.8 },
+          {
+            path: 'change.txt',
+            rule: 'database-migration',
+            value: 'uses-db',
+            label: 'The change reads or writes the database.',
+            confidence: 0.9,
+            probabilities: { 'no-db': 0.01, 'uses-db': 0.94, migrates: 0.05 },
+          },
+          {
+            path: 'change.txt',
+            rule: 'log-guideline',
+            value: 1,
+            label: 'second',
+            confidence: 0.8,
+            probabilities: { '0': 0.1, '1': 0.8, '2': 0.1 },
+            legend: { '0': 'first', '1': 'second', '2': 'third' },
+          },
         ],
       },
     ])
