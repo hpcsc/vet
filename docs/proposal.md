@@ -23,7 +23,7 @@ A code review checks a diff against guidelines that live in the reviewer's memor
 | Command | Work |
 | --- | --- |
 | `vet` | Judge the diff against the questions file |
-| `vet questions` | Print an example questions file |
+| `vet questions example` | Print an example questions file |
 | `vet questions init` | Write the default questions file where vet looks for it |
 | `vet config` | Print the default config file |
 | `vet version` | Print the version |

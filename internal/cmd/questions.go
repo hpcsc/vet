@@ -13,8 +13,16 @@ import (
 
 func newQuestionsCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "questions",
-		Usage: "print the example questions file, one rule of each type",
+		Name:     "questions",
+		Usage:    "print an example questions file, or write the default one",
+		Commands: []*cli.Command{newQuestionsExampleCommand(), newQuestionsInitCommand()},
+	}
+}
+
+func newQuestionsExampleCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "example",
+		Usage: "print an example questions file, one rule of each type",
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			file, err := questions.Marshal(exampleQuestionsFile())
 			if err != nil {
@@ -23,7 +31,6 @@ func newQuestionsCommand() *cli.Command {
 			_, err = fmt.Fprint(cmd.Root().Writer, string(file))
 			return err
 		},
-		Commands: []*cli.Command{newQuestionsInitCommand()},
 	}
 }
 

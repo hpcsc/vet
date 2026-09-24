@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { buildTag, runCli, scratchDir } from '../testUtils'
 
-describe('vet questions', () => {
+describe('vet questions example', () => {
   it('prints a questions file with a rule of each type', async () => {
-    const result = await runCli(scratchDir(), ['questions'])
+    const result = await runCli(scratchDir(), ['questions', 'example'])
 
     expect(result.status).toBe(0)
     expect(result.stdout).toContain('type: noul')

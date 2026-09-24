@@ -13,13 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestQuestionsCommand(t *testing.T) {
+func TestQuestionsExampleCommand(t *testing.T) {
 	t.Run("prints a valid example questions file with all three rule types", func(t *testing.T) {
 		var out bytes.Buffer
-		command := newQuestionsCommand()
+		command := newQuestionsExampleCommand()
 		command.Writer = &out
 
-		err := command.Run(context.Background(), []string{"questions"})
+		err := command.Run(context.Background(), []string{"example"})
 
 		require.NoError(t, err)
 		file, err := questions.Parse(out.Bytes(), "")
