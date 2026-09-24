@@ -252,6 +252,36 @@ func TestResolveValues(t *testing.T) {
 			require.Equal(t, "config.yaml", path)
 		})
 
+		t.Run("a ~ in the flag expands to the home directory", func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+
+			path, err := questionsPathOf("~/rules.yaml", "", home)
+
+			require.NoError(t, err)
+			require.Equal(t, filepath.Join(home, "rules.yaml"), path)
+		})
+
+		t.Run("a ~ in the config expands to the home directory", func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+
+			path, err := questionsPathOf("", "~/.config/vet/questions", home)
+
+			require.NoError(t, err)
+			require.Equal(t, filepath.Join(home, ".config", "vet", "questions"), path)
+		})
+
+		t.Run("a bare ~ expands to the home directory itself", func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+
+			path, err := questionsPathOf("~", "", home)
+
+			require.NoError(t, err)
+			require.Equal(t, home, path)
+		})
+
 		t.Run("falls back to questions.yaml in the working directory", func(t *testing.T) {
 			dir := t.TempDir()
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "questions.yaml"), []byte("version: 1\nrules: []\n"), 0o600))

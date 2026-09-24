@@ -46,7 +46,7 @@ func newQuestionsInitCommand() *cli.Command {
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			path := cmd.String("path")
 			if path != "" {
-				return writeDefaultQuestions(cmd, path)
+				return writeDefaultQuestions(cmd, expandHome(path))
 			}
 			repoDir, err := os.Getwd()
 			if err != nil {
@@ -60,7 +60,7 @@ func newQuestionsInitCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			configQuestions := cfg.Resolve().QuestionsFile
+			configQuestions := expandHome(cfg.Resolve().QuestionsFile)
 			if configQuestions == "" {
 				return writeDefaultQuestions(cmd, config.QuestionsPath(os.Getenv))
 			}

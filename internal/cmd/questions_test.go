@@ -82,4 +82,36 @@ func TestQuestionsInitCommand(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, file.Rules, 3)
 	})
+
+	t.Run("expands a ~ in the path flag to the home directory", func(t *testing.T) {
+		home := t.TempDir()
+		t.Setenv("HOME", home)
+		var out bytes.Buffer
+		command := newQuestionsInitCommand()
+		command.Writer = &out
+
+		err := command.Run(context.Background(), []string{"init", "--path", "~/questions.yaml"})
+
+		require.NoError(t, err)
+		_, err = os.Stat(filepath.Join(home, "questions.yaml"))
+		require.NoError(t, err)
+	})
+
+	t.Run("expands a ~ questions file in the config", func(t *testing.T) {
+		home := t.TempDir()
+		t.Setenv("HOME", home)
+		require.NoError(t, os.MkdirAll(filepath.Join(home, ".config", "vet", "questions"), 0o700))
+		dir := t.TempDir()
+		configPath := filepath.Join(dir, "vet.yaml")
+		require.NoError(t, os.WriteFile(configPath, []byte("questionsFile: \"~/.config/vet/questions\"\n"), 0o600))
+		var out bytes.Buffer
+		command := newQuestionsInitCommand()
+		command.Writer = &out
+
+		err := command.Run(context.Background(), []string{"init", "--config", configPath})
+
+		require.NoError(t, err)
+		_, err = os.Stat(filepath.Join(home, ".config", "vet", "questions", "questions.yaml"))
+		require.NoError(t, err)
+	})
 }

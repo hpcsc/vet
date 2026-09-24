@@ -111,14 +111,24 @@ func runKeyCommand(command string) (string, error) {
 
 func questionsPathOf(flag, cfg, cwd string) (string, error) {
 	if flag != "" {
-		return flag, nil
+		return expandHome(flag), nil
 	}
 	if cfg != "" {
-		return cfg, nil
+		return expandHome(cfg), nil
 	}
 	path := filepath.Join(cwd, "questions.yaml")
 	if _, err := os.Stat(path); err == nil {
 		return path, nil
 	}
 	return "", errors.New("no questions file: pass --questions, set questionsFile in the config, or put questions.yaml in the working directory")
+}
+
+func expandHome(path string) string {
+	if path != "~" && !strings.HasPrefix(path, "~/") {
+		return path
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		return filepath.Join(home, strings.TrimPrefix(path, "~"))
+	}
+	return path
 }
