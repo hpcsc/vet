@@ -25,9 +25,11 @@ type Client struct {
 	key   string
 }
 
-func NewClient(httpClient *http.Client, api, model, key string) *Client {
+func NewClient(httpClient *http.Client, api, model, key string) backend.Judge {
 	return &Client{http: httpClient, api: api, model: model, key: key}
 }
+
+var _ backend.Judge = (*Client)(nil)
 
 type request struct {
 	State     string              `json:"state"`

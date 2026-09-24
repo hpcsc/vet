@@ -19,11 +19,11 @@ type Answer struct {
 	Confidence *float64
 }
 
-type Backend interface {
+type Judge interface {
 	Ask(ctx context.Context, state State, questions questions.File) ([]Answer, error)
 }
 
-var _ Backend = (*Fake)(nil)
+var _ Judge = (*Fake)(nil)
 
 type Fake struct {
 	answers []Answer

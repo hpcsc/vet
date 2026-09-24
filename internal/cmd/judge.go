@@ -24,7 +24,7 @@ func (c exitCode) Error() string { return fmt.Sprintf("exit code %d", int(c)) }
 type judge struct {
 	out       io.Writer
 	repo      *git.Repo
-	backend   backend.Backend
+	backend   backend.Judge
 	questions string
 	base      string
 	json      bool
