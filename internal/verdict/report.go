@@ -26,35 +26,33 @@ type Report struct {
 	Violations int    `json:"violations"`
 }
 
-type FileAnswers struct {
-	Path    string
-	Answers []backend.Answer
-}
-
-func Judge(base string, file questions.File, files []FileAnswers) (Report, error) {
+func Judge(base string, file questions.File, answers []backend.Answer) (Report, error) {
 	rules := make(map[string]questions.Rule, len(file.Rules))
 	for _, rule := range file.Rules {
 		rules[rule.ID] = rule
 	}
 
-	report := Report{Base: base, Files: make([]File, 0, len(files))}
-	for _, fileAnswers := range files {
-		answers := make([]Row, 0, len(fileAnswers.Answers))
-		for _, answer := range fileAnswers.Answers {
-			rule, ok := rules[answer.Rule]
-			if !ok {
-				return Report{}, fmt.Errorf("answer for unknown rule %s", answer.Rule)
-			}
-			row, err := judge(rule, answer)
-			if err != nil {
-				return Report{}, err
-			}
-			if row.Violates {
-				report.Violations++
-			}
-			answers = append(answers, row)
+	report := Report{Base: base}
+	fileIndex := map[string]int{}
+	for _, answer := range answers {
+		rule, ok := rules[answer.Rule]
+		if !ok {
+			return Report{}, fmt.Errorf("answer for unknown rule %s", answer.Rule)
 		}
-		report.Files = append(report.Files, File{Path: fileAnswers.Path, Answers: answers})
+		row, err := judge(rule, answer)
+		if err != nil {
+			return Report{}, err
+		}
+		index, ok := fileIndex[answer.Path]
+		if !ok {
+			index = len(report.Files)
+			fileIndex[answer.Path] = index
+			report.Files = append(report.Files, File{Path: answer.Path})
+		}
+		report.Files[index].Answers = append(report.Files[index].Answers, row)
+		if row.Violates {
+			report.Violations++
+		}
 	}
 	return report, nil
 }

@@ -8,6 +8,7 @@ import (
 )
 
 type Answer struct {
+	Path       string
 	Rule       string
 	Noul       *float64
 	Choice     *string

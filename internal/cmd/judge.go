@@ -62,9 +62,9 @@ func (j *judge) run(ctx context.Context) error {
 	return nil
 }
 
-func (j *judge) askAll(ctx context.Context, file questions.File, files []diff.File) ([]verdict.FileAnswers, error) {
+func (j *judge) askAll(ctx context.Context, file questions.File, files []diff.File) ([]backend.Answer, error) {
 	sem := make(chan struct{}, 4)
-	results := make([]verdict.FileAnswers, len(files))
+	results := make([][]backend.Answer, len(files))
 	errs := make([]error, len(files))
 	var wg sync.WaitGroup
 	for i, f := range files {
@@ -73,18 +73,27 @@ func (j *judge) askAll(ctx context.Context, file questions.File, files []diff.Fi
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			answers, err := j.backend.Ask(ctx, f, file)
-			results[i] = verdict.FileAnswers{Path: f.Path, Answers: answers}
+			raw, err := j.backend.Ask(ctx, f, file)
+			if err == nil {
+				answers := make([]backend.Answer, len(raw))
+				for k, a := range raw {
+					a.Path = f.Path
+					answers[k] = a
+				}
+				results[i] = answers
+			}
 			errs[i] = err
 		}(i, f)
 	}
 	wg.Wait()
-	for _, err := range errs {
+	all := make([]backend.Answer, 0, len(files))
+	for i, err := range errs {
 		if err != nil {
 			return nil, err
 		}
+		all = append(all, results[i]...)
 	}
-	return results, nil
+	return all, nil
 }
 
 func (j *judge) render(report verdict.Report) error {

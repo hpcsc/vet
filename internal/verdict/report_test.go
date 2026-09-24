@@ -55,7 +55,12 @@ rules:
 	judge := func(t *testing.T, answers []backend.Answer) Report {
 		t.Helper()
 
-		report, err := Judge("origin/main", file, []FileAnswers{{Path: "internal/repo.go", Answers: answers}})
+		withPath := make([]backend.Answer, len(answers))
+		copy(withPath, answers)
+		for i := range withPath {
+			withPath[i].Path = "internal/repo.go"
+		}
+		report, err := Judge("origin/main", file, withPath)
 		require.NoError(t, err)
 		return report
 	}
@@ -132,9 +137,9 @@ rules:
 
 	t.Run("report", func(t *testing.T) {
 		t.Run("groups the rows under each file", func(t *testing.T) {
-			report, err := Judge("origin/main", file, []FileAnswers{
-				{Path: "a.go", Answers: []backend.Answer{{Rule: "no-flag-field", Noul: noul(0.1)}}},
-				{Path: "b.go", Answers: []backend.Answer{{Rule: "database-migration", Choice: choice("no-db")}}},
+			report, err := Judge("origin/main", file, []backend.Answer{
+				{Path: "a.go", Rule: "no-flag-field", Noul: noul(0.1)},
+				{Path: "b.go", Rule: "database-migration", Choice: choice("no-db")},
 			})
 
 			require.NoError(t, err)
@@ -144,13 +149,21 @@ rules:
 			require.Equal(t, "b.go", report.Files[1].Path)
 		})
 
+		t.Run("keeps the files in the order their answers arrive", func(t *testing.T) {
+			report, err := Judge("origin/main", file, []backend.Answer{
+				{Path: "b.go", Rule: "database-migration", Choice: choice("no-db")},
+				{Path: "a.go", Rule: "no-flag-field", Noul: noul(0.1)},
+			})
+
+			require.NoError(t, err)
+			require.Equal(t, []string{"b.go", "a.go"}, []string{report.Files[0].Path, report.Files[1].Path})
+		})
+
 		t.Run("counts every violation across the files", func(t *testing.T) {
-			report, err := Judge("origin/main", file, []FileAnswers{
-				{Path: "a.go", Answers: []backend.Answer{{Rule: "no-flag-field", Noul: noul(0.9)}}},
-				{Path: "b.go", Answers: []backend.Answer{
-					{Rule: "database-migration", Choice: choice("migrates")},
-					{Rule: "log-guideline", Score: score(2)},
-				}},
+			report, err := Judge("origin/main", file, []backend.Answer{
+				{Path: "a.go", Rule: "no-flag-field", Noul: noul(0.9)},
+				{Path: "b.go", Rule: "database-migration", Choice: choice("migrates")},
+				{Path: "b.go", Rule: "log-guideline", Score: score(2)},
 			})
 
 			require.NoError(t, err)
@@ -158,8 +171,8 @@ rules:
 		})
 
 		t.Run("rejects an answer for an unknown rule", func(t *testing.T) {
-			_, err := Judge("origin/main", file, []FileAnswers{
-				{Path: "a.go", Answers: []backend.Answer{{Rule: "no-such-rule", Noul: noul(0.1)}}},
+			_, err := Judge("origin/main", file, []backend.Answer{
+				{Path: "a.go", Rule: "no-such-rule", Noul: noul(0.1)},
 			})
 
 			require.ErrorContains(t, err, "no-such-rule")
@@ -168,14 +181,10 @@ rules:
 
 	t.Run("text", func(t *testing.T) {
 		t.Run("renders each file with a check or a cross per rule", func(t *testing.T) {
-			report, err := Judge("origin/main", file, []FileAnswers{
-				{Path: "a.go", Answers: []backend.Answer{
-					{Rule: "no-flag-field", Noul: noul(0.2)},
-					{Rule: "database-migration", Choice: choice("migrates"), Confidence: confidence(0.9)},
-				}},
-				{Path: "b.go", Answers: []backend.Answer{
-					{Rule: "log-guideline", Score: score(2)},
-				}},
+			report, err := Judge("origin/main", file, []backend.Answer{
+				{Path: "a.go", Rule: "no-flag-field", Noul: noul(0.2)},
+				{Path: "a.go", Rule: "database-migration", Choice: choice("migrates"), Confidence: confidence(0.9)},
+				{Path: "b.go", Rule: "log-guideline", Score: score(2)},
 			})
 
 			require.NoError(t, err)
@@ -190,8 +199,8 @@ rules:
 		})
 
 		t.Run("says so when the change violates no rule", func(t *testing.T) {
-			report, err := Judge("origin/main", file, []FileAnswers{
-				{Path: "a.go", Answers: []backend.Answer{{Rule: "no-flag-field", Noul: noul(0.1)}}},
+			report, err := Judge("origin/main", file, []backend.Answer{
+				{Path: "a.go", Rule: "no-flag-field", Noul: noul(0.1)},
 			})
 
 			require.NoError(t, err)
