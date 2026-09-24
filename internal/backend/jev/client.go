@@ -83,8 +83,12 @@ func (c *Client) request(file diff.File, rules questions.File) (request, error) 
 		}
 		questionsMap[rule.ID] = q
 	}
+	state := "File: " + file.Path + "\n\n" + file.Diff
+	if rules.Context != "" {
+		state = rules.Context + "\n\n" + state
+	}
 	return request{
-		State:     "File: " + file.Path + "\n\n" + file.Diff,
+		State:     state,
 		Model:     c.model,
 		Questions: questionsMap,
 	}, nil

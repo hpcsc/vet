@@ -62,6 +62,24 @@ rules:
 	file := diff.File{Path: "a.go", Diff: "@@ -1 +1 @@"}
 
 	t.Run("ask", func(t *testing.T) {
+		t.Run("puts the context above the file in the state", func(t *testing.T) {
+			contextFile := mustParse(t, `version: 1
+context: use slog
+rules:
+  - id: no-flag-field
+    instructions: adds a flag field
+    type: noul
+    noulLimit: 0.5
+`)
+			var got map[string]any
+			server := newServer(t, `{"no-flag-field":{"type":"noul","noul":0.2}}`, &got)
+
+			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, contextFile)
+
+			require.NoError(t, err)
+			require.Equal(t, "use slog\n\nFile: a.go\n\n@@ -1 +1 @@", got["state"])
+		})
+
 		t.Run("posts the file, the model and the questions to the endpoint", func(t *testing.T) {
 			var got map[string]any
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
