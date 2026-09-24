@@ -15,16 +15,76 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestConfigCommand(t *testing.T) {
+func TestConfigExampleCommand(t *testing.T) {
 	t.Run("prints the default config file", func(t *testing.T) {
-		command := newConfigCommand()
+		command := newConfigExampleCommand()
 		var out bytes.Buffer
 		command.Writer = &out
 
-		err := command.Run(context.Background(), []string{"config"})
+		err := command.Run(context.Background(), []string{"example"})
 
 		require.NoError(t, err)
 		file, err := config.ParseFile(out.String())
+		require.NoError(t, err)
+		require.Equal(t, config.Default(), file.Resolve())
+	})
+}
+
+func TestConfigInitCommand(t *testing.T) {
+	t.Run("writes the default config file to the given path", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "config.yaml")
+		var out bytes.Buffer
+		command := newConfigInitCommand()
+		command.Writer = &out
+
+		err := command.Run(context.Background(), []string{"init", "--path", path})
+
+		require.NoError(t, err)
+		file, err := config.LoadFile(path)
+		require.NoError(t, err)
+		require.Equal(t, config.Default(), file.Resolve())
+	})
+
+	t.Run("writes the default config file where vet looks for it", func(t *testing.T) {
+		home := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", home)
+		var out bytes.Buffer
+		command := newConfigInitCommand()
+		command.Writer = &out
+
+		err := command.Run(context.Background(), []string{"init"})
+
+		require.NoError(t, err)
+		_, err = os.Stat(filepath.Join(home, "vet", "config.yaml"))
+		require.NoError(t, err)
+	})
+
+	t.Run("refuses to overwrite an existing file without --force", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "config.yaml")
+		require.NoError(t, os.WriteFile(path, []byte("model: rowan\n"), 0o600))
+		var out bytes.Buffer
+		command := newConfigInitCommand()
+		command.Writer = &out
+
+		err := command.Run(context.Background(), []string{"init", "--path", path})
+
+		require.ErrorContains(t, err, "already exists")
+		file, err := config.LoadFile(path)
+		require.NoError(t, err)
+		require.Equal(t, "rowan", file.Resolve().Model)
+	})
+
+	t.Run("overwrites an existing file with --force", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "config.yaml")
+		require.NoError(t, os.WriteFile(path, []byte("model: rowan\n"), 0o600))
+		var out bytes.Buffer
+		command := newConfigInitCommand()
+		command.Writer = &out
+
+		err := command.Run(context.Background(), []string{"init", "--force", "--path", path})
+
+		require.NoError(t, err)
+		file, err := config.LoadFile(path)
 		require.NoError(t, err)
 		require.Equal(t, config.Default(), file.Resolve())
 	})

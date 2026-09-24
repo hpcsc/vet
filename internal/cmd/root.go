@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/fatih/color"
@@ -95,7 +96,15 @@ func judgeAction(ctx context.Context, cmd *cli.Command) error {
 
 func newConfigCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "config",
+		Name:     "config",
+		Usage:    "print an example config file, or write the default one",
+		Commands: []*cli.Command{newConfigExampleCommand(), newConfigInitCommand()},
+	}
+}
+
+func newConfigExampleCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "example",
 		Usage: "print the default config file",
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			text, err := config.Default().YAML()
@@ -106,6 +115,41 @@ func newConfigCommand() *cli.Command {
 			return err
 		},
 	}
+}
+
+func newConfigInitCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "init",
+		Usage: "write the default config file where vet looks for it, unless --path gives another place",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{Name: "force", Usage: "overwrite a config file that already exists"},
+			&cli.StringFlag{Name: "path", Value: "", Usage: "the path of the config file to write, instead of the resolved one"},
+		},
+		Action: func(_ context.Context, cmd *cli.Command) error {
+			return writeDefaultConfig(cmd, cmd.String("path"))
+		},
+	}
+}
+
+func writeDefaultConfig(cmd *cli.Command, path string) error {
+	if path == "" {
+		path = config.Path(os.Getenv)
+	}
+	if _, err := os.Stat(path); err == nil && !cmd.Bool("force") {
+		return fmt.Errorf("config file %s already exists (pass --force to overwrite)", path)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	text, err := config.Default().YAML()
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(path, text, 0o644); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(cmd.Root().Writer, "Wrote the default config file to %s.\n", path)
+	return err
 }
 
 func newVersionCommand() *cli.Command {

@@ -37,7 +37,8 @@ vet --json                         # print the report as JSON
 vet --exit-code                    # exit 1 when the change violates a rule
 vet questions example                # print an example questions file
 vet questions init                   # write the default questions file where vet looks for it
-vet config                           # print the default config file
+vet config example                   # print the default config file
+vet config init                      # write the default config file where vet looks for it
 ```
 
 `vet` runs the diff of a change against a file of written rules, answered by the System One model

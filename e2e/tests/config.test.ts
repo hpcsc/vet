@@ -34,15 +34,42 @@ async function fakeSystemOne(key: string, model = 'jev-latest'): Promise<string>
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}`
 }
 
-describe('vet config', () => {
+describe('vet config example', () => {
   it('prints a valid default config file', async () => {
-    const result = await runCli(scratchDir(), ['config'])
+    const result = await runCli(scratchDir(), ['config', 'example'])
 
     expect(result.status).toBe(0)
     expect(result.stdout).toContain('apiKeyCommand:')
     expect(result.stdout).toContain('questionsFile:')
     expect(result.stdout).toContain('apiUrl:')
     expect(result.stdout).toContain('model:')
+  })
+})
+
+describe('vet config init', () => {
+  it('writes a default config file with every option', async () => {
+    const dir = scratchDir()
+    const path = join(dir, 'config.yaml')
+
+    const result = await runCli(dir, ['config', 'init', '--path', path])
+
+    expect(result.status).toBe(0)
+    const file = readFileSync(path, 'utf8')
+    expect(file).toContain('apiKeyCommand:')
+    expect(file).toContain('questionsFile:')
+    expect(file).toContain('apiUrl:')
+    expect(file).toContain('model:')
+  })
+
+  it('refuses to overwrite an existing file without --force', async () => {
+    const dir = scratchDir()
+    const path = join(dir, 'config.yaml')
+    writeFileSync(path, 'model: rowan\n')
+
+    const result = await runCli(dir, ['config', 'init', '--path', path])
+
+    expect(result.status).toBe(2)
+    expect(readFileSync(path, 'utf8')).toBe('model: rowan\n')
   })
 })
 
