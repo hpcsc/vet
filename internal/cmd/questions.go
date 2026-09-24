@@ -91,6 +91,7 @@ func writeDefaultQuestions(cmd *cli.Command, path string) error {
 func exampleQuestionsFile() questions.File {
 	return questions.File{
 		Version: 1,
+		Context: "These guidelines apply to every rule below.\n- The codebase logs with slog, never to stdout.",
 		Rules: []questions.Rule{
 			{
 				ID:           "no-flag-field",
