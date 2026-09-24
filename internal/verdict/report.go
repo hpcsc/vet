@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/hpcsc/vet/internal/backend"
 	"github.com/hpcsc/vet/internal/questions"
 )
@@ -96,7 +97,7 @@ func (r Report) Text() string {
 	for _, g := range r.Groups {
 		prefix := ""
 		if g.Name != "" {
-			b.WriteString(g.Name)
+			b.WriteString(color.CyanString(g.Name))
 			b.WriteString("\n")
 			prefix = "  "
 		}
@@ -107,16 +108,16 @@ func (r Report) Text() string {
 					b.WriteString("\n")
 				}
 				b.WriteString(prefix)
-				b.WriteString(a.Path)
+				b.WriteString(color.YellowString(a.Path))
 				b.WriteString("\n")
 				lastPath = a.Path
 			}
-			mark := "✓"
+			mark := color.GreenString("✓")
 			if a.Violates {
-				mark = "✗"
+				mark = color.RedString("✗")
 			}
 			b.WriteString(prefix)
-			fmt.Fprintf(&b, "  %s %s: %v", mark, a.Rule, a.Value)
+			fmt.Fprintf(&b, "  %s %s: %v", mark, color.BlueString(a.Rule), a.Value)
 			if a.Label != "" {
 				fmt.Fprintf(&b, " (%s)", a.Label)
 			}
@@ -142,14 +143,14 @@ func (r Report) Text() string {
 				continue
 			}
 			b.WriteString("  - ")
-			b.WriteString(a.Rule)
+			b.WriteString(color.BlueString(a.Rule))
 			if a.Path != "" {
 				b.WriteString(" in ")
-				b.WriteString(a.Path)
+				b.WriteString(color.YellowString(a.Path))
 			}
 			if g.Name != "" {
 				b.WriteString(" (")
-				b.WriteString(g.Name)
+				b.WriteString(color.CyanString(g.Name))
 				b.WriteString(")")
 			}
 			b.WriteString("\n")
