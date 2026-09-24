@@ -46,9 +46,27 @@ vet config init                      # write the default config file where vet l
 no rule, 1 when a rule violates and `--exit-code` is on, and 2 when it cannot finish: no questions file,
 no API key, or a backend error.
 
+## API key
+
+`vet` takes the System One API key from the first of these that is set:
+
+1. `--api-key`
+2. `TYPESAFE_API_KEY`
+3. `apiKeyCommand` in the config file
+
+An `apiKeyCommand` runs through the shell and uses its stdout as the key, so it can ask a keychain or a
+credential store for the key. With `fnox`, for example:
+
 ```shell
-TYPESAFE_API_KEY=... vet  # the API key, from the TYPESAFE_API_KEY env var or --api-key
+vet config init   # write the config file first, then edit it
 ```
+
+```yaml
+# in ~/.config/vet/config.yaml
+apiKeyCommand: fnox get TYPESAFE_API_KEY
+```
+
+When none of the three is set, `vet` fails and says how to provide a key.
 
 `docs/proposal.md` specifies the questions file format and how the answers are judged. The base is
 `--base` when given, else `origin/HEAD`, then `origin/main`, `origin/master`, `main`, and `master`.
