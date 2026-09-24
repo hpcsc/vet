@@ -29,6 +29,7 @@ func TestJudge(t *testing.T) {
 	ctx := context.Background()
 
 	questionsFile := `version: 1
+name: the rules
 rules:
   - id: no-flag-field
     instructions: adds a flag field
@@ -87,6 +88,7 @@ rules:
 
 			require.NoError(t, err)
 			text := j.out.(*bytes.Buffer).String()
+			require.Contains(t, text, "the rules")
 			require.Contains(t, text, "✓ no-flag-field: 0.2")
 			require.Contains(t, text, "The change violates no rule.")
 		})
@@ -102,7 +104,7 @@ rules:
 	})
 
 	t.Run("violating change", func(t *testing.T) {
-		t.Run("prints crosses and the violation count", func(t *testing.T) {
+		t.Run("prints crosses, the violation count, and the violated rules", func(t *testing.T) {
 			j, _ := setup(t, violatingAnswers)
 
 			err := j.run(ctx)
@@ -111,6 +113,9 @@ rules:
 			text := j.out.(*bytes.Buffer).String()
 			require.Contains(t, text, "✗ no-flag-field: 0.9")
 			require.Contains(t, text, "The change violates 3 rules.")
+			require.Contains(t, text, "  - no-flag-field in change.txt (the rules)")
+			require.Contains(t, text, "  - database-migration in change.txt (the rules)")
+			require.Contains(t, text, "  - log-guideline in change.txt (the rules)")
 		})
 
 		t.Run("exits 0 when --exit-code is off", func(t *testing.T) {

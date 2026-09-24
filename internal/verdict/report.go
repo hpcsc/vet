@@ -10,20 +10,21 @@ import (
 
 type Row struct {
 	Rule       string   `json:"rule"`
+	Path       string   `json:"path"`
 	Value      any      `json:"value"`
 	Violates   bool     `json:"violates,omitempty"`
 	Confidence *float64 `json:"confidence,omitempty"`
 }
 
-type File struct {
-	Path    string `json:"path"`
+type Group struct {
+	Name    string `json:"name"`
 	Answers []Row  `json:"answers"`
 }
 
 type Report struct {
-	Base       string `json:"base"`
-	Files      []File `json:"files"`
-	Violations int    `json:"violations"`
+	Base       string  `json:"base"`
+	Groups     []Group `json:"groups"`
+	Violations int     `json:"violations"`
 }
 
 func Judge(base string, file questions.File, answers []backend.Answer) (Report, error) {
@@ -33,7 +34,7 @@ func Judge(base string, file questions.File, answers []backend.Answer) (Report, 
 	}
 
 	report := Report{Base: base}
-	fileIndex := map[string]int{}
+	groupIndex := map[string]int{}
 	for _, answer := range answers {
 		rule, ok := rules[answer.Rule]
 		if !ok {
@@ -43,13 +44,14 @@ func Judge(base string, file questions.File, answers []backend.Answer) (Report, 
 		if err != nil {
 			return Report{}, err
 		}
-		index, ok := fileIndex[answer.Path]
+		row.Path = answer.Path
+		index, ok := groupIndex[rule.Source]
 		if !ok {
-			index = len(report.Files)
-			fileIndex[answer.Path] = index
-			report.Files = append(report.Files, File{Path: answer.Path})
+			index = len(report.Groups)
+			groupIndex[rule.Source] = index
+			report.Groups = append(report.Groups, Group{Name: rule.Source})
 		}
-		report.Files[index].Answers = append(report.Files[index].Answers, row)
+		report.Groups[index].Answers = append(report.Groups[index].Answers, row)
 		if row.Violates {
 			report.Violations++
 		}
@@ -77,14 +79,29 @@ func judge(rule questions.Rule, answer backend.Answer) (Row, error) {
 
 func (r Report) Text() string {
 	var b strings.Builder
-	for _, f := range r.Files {
-		b.WriteString(f.Path)
-		b.WriteString("\n")
-		for _, a := range f.Answers {
+	for _, g := range r.Groups {
+		prefix := ""
+		if g.Name != "" {
+			b.WriteString(g.Name)
+			b.WriteString("\n")
+			prefix = "  "
+		}
+		lastPath := ""
+		for _, a := range g.Answers {
+			if a.Path != lastPath {
+				if lastPath != "" {
+					b.WriteString("\n")
+				}
+				b.WriteString(prefix)
+				b.WriteString(a.Path)
+				b.WriteString("\n")
+				lastPath = a.Path
+			}
 			mark := "✓"
 			if a.Violates {
 				mark = "✗"
 			}
+			b.WriteString(prefix)
 			fmt.Fprintf(&b, "  %s %s: %v", mark, a.Rule, a.Value)
 			if a.Confidence != nil {
 				fmt.Fprintf(&b, " (confidence %v)", *a.Confidence)
@@ -98,9 +115,28 @@ func (r Report) Text() string {
 		return b.String()
 	}
 	if r.Violations == 1 {
-		b.WriteString("The change violates 1 rule.")
-		return b.String()
+		b.WriteString("The change violates 1 rule.\n")
+	} else {
+		fmt.Fprintf(&b, "The change violates %d rules.\n", r.Violations)
 	}
-	fmt.Fprintf(&b, "The change violates %d rules.", r.Violations)
+	for _, g := range r.Groups {
+		for _, a := range g.Answers {
+			if !a.Violates {
+				continue
+			}
+			b.WriteString("  - ")
+			b.WriteString(a.Rule)
+			if a.Path != "" {
+				b.WriteString(" in ")
+				b.WriteString(a.Path)
+			}
+			if g.Name != "" {
+				b.WriteString(" (")
+				b.WriteString(g.Name)
+				b.WriteString(")")
+			}
+			b.WriteString("\n")
+		}
+	}
 	return b.String()
 }
