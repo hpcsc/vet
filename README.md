@@ -68,7 +68,51 @@ apiKeyCommand: fnox get TYPESAFE_API_KEY
 
 When none of the three is set, `vet` fails and says how to provide a key.
 
-`docs/proposal.md` specifies the questions file format and how the answers are judged. The base is
+## Questions file
+
+`vet` judges the diff against a YAML file of rules. The file has a `version` and a list of `rules`; a shared
+`context` above the rules is prose the model sees before every question. Each rule has an `id`, the
+`instructions` it answers, a `type`, and the fields that type needs:
+
+| Type | Fields | Answer | Violation |
+| --- | --- | --- | --- |
+| `noul` | `noulLimit` | A probability from 0 to 1 | The answer is greater than or equal to `noulLimit` |
+| `choice` | `choices`, `violatesWhen` | One of the `choices` keys | The answer equals `violatesWhen` |
+| `score` | `scores`, `scoreLimit` | A level index | The answer is greater than or equal to `scoreLimit` |
+
+```yaml
+version: 1
+context: |
+  The change is in a Go codebase. General guidelines:
+  - Log with slog, never to stdout.
+rules:
+  - id: no-flag-field
+    instructions: The change adds a flag field to the request struct.
+    type: noul
+    noulLimit: 0.5
+```
+
+### Referencing other files
+
+A `context` or an `instructions` that starts with `@` names a file whose content is read instead, so a rule
+can point at the guideline it measures instead of copying it. The path resolves against the directory of the
+questions file, a leading `~` expands to the home directory, and a missing file is an error.
+
+```yaml
+version: 1
+context: "@~/.config/ai/guidelines/go/logging.md"
+rules:
+  - id: log-guideline
+    instructions: "@~/.config/ai/guidelines/go/logging.md"
+    type: score
+    scores: [follows, adds noise, prohibited]
+    scoreLimit: 2
+```
+
+The reference works in both places: a `@` `context` and a `@` `instructions` each read their own file, and
+so does every questions file when you pass a directory of them.
+
+`docs/proposal.md` specifies the file format in full. The base is
 `--base` when given, else `origin/HEAD`, then `origin/main`, `origin/master`, `main`, and `master`.
 
 ## Version and update
