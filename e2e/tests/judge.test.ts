@@ -6,6 +6,7 @@ import { describe, expect, it, onTestFinished } from 'vitest'
 import { gitRepoWithChange, runCli } from '../testUtils'
 
 const questionsFile = `version: 1
+name: the rules
 rules:
   - id: no-flag-field
     instructions: The change adds a flag field to the request struct.
@@ -80,6 +81,7 @@ describe('the judge', () => {
     const result = await runCli(repo, judgeArgs(api))
 
     expect(result.status).toBe(0)
+    expect(result.stdout).toContain('the rules')
     expect(result.stdout).toContain('✓ no-flag-field: 0.2')
     expect(result.stdout).toContain('The change violates no rule.')
   })
@@ -94,6 +96,7 @@ describe('the judge', () => {
     expect(result.status).toBe(0)
     expect(result.stdout).toContain('✗ database-migration: migrates')
     expect(result.stdout).toContain('The change violates 3 rules.')
+    expect(result.stdout).toContain('- database-migration in change.txt (the rules)')
   })
 
   it('exits 1 when a change violates a rule and --exit-code is on', async () => {
@@ -118,13 +121,13 @@ describe('the judge', () => {
     const report = JSON.parse(result.stdout)
     expect(report.base).toBe('HEAD~1')
     expect(report.violations).toBe(0)
-    expect(report.files).toEqual([
+    expect(report.groups).toEqual([
       {
-        path: 'change.txt',
+        name: 'the rules',
         answers: [
-          { rule: 'no-flag-field', value: 0.2 },
-          { rule: 'database-migration', value: 'uses-db', confidence: 0.9 },
-          { rule: 'log-guideline', value: 1, confidence: 0.8 },
+          { path: 'change.txt', rule: 'no-flag-field', value: 0.2 },
+          { path: 'change.txt', rule: 'database-migration', value: 'uses-db', confidence: 0.9 },
+          { path: 'change.txt', rule: 'log-guideline', value: 1, confidence: 0.8 },
         ],
       },
     ])

@@ -42,7 +42,9 @@ vet config init                      # write the default config file where vet l
 ```
 
 `vet` runs the diff of a change against a file of written rules, answered by the System One model
-`jev-latest`, and prints a report with a check or a cross per rule. It exits 0 when the change violates
+`jev-latest`, and prints a report with a check or a cross per rule. When `--questions` names a directory,
+every questions file in it is asked, and the report groups the results under each file by its `name`, or
+by the file name. It exits 0 when the change violates
 no rule, 1 when a rule violates and `--exit-code` is on, and 2 when it cannot finish: no questions file,
 no API key, or a backend error.
 
@@ -70,9 +72,9 @@ When none of the three is set, `vet` fails and says how to provide a key.
 
 ## Questions file
 
-`vet` judges the diff against a YAML file of rules. The file has a `version` and a list of `rules`; a shared
-`context` above the rules is prose the model sees before every question. Each rule has an `id`, the
-`instructions` it answers, a `type`, and the fields that type needs:
+`vet` judges the diff against a YAML file of rules. The file has a `version` and a list of `rules`; an
+optional `name` labels it in the report; a shared `context` above the rules is prose the model sees before
+every question. Each rule has an `id`, the `instructions` it answers, a `type`, and the fields that type needs:
 
 | Type | Fields | Answer | Violation |
 | --- | --- | --- | --- |

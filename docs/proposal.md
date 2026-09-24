@@ -182,17 +182,18 @@ Retry policy:
 
 ### The verdict
 
-`internal/verdict` turns answers into a per-file report. Each rule becomes one row.
+`internal/verdict` turns answers into a report grouped by questions file. Each rule becomes one row, and a row carries the file it judged.
 
 ```json
 {
   "base": "origin/main",
-  "files": [
+  "groups": [
     {
-      "path": "internal/repo.go",
+      "name": "naming-patterns.yaml",
       "answers": [
-        { "rule": "no-flag-field", "value": 0.2 },
+        { "path": "internal/repo.go", "rule": "no-flag-field", "value": 0.2 },
         {
+          "path": "internal/repo.go",
           "rule": "database-migration",
           "value": "migrates",
           "violates": true,
@@ -205,13 +206,13 @@ Retry policy:
 }
 ```
 
-The verdict checks the violation rule for the question type:
+A group holds the rows of one questions file. When you pass a directory of questions files, the report groups by file; each group is labeled by the questions file's `name`, or its file name. The verdict checks the violation rule for the question type:
 
 - `noul`: the answer is greater than or equal to `noulLimit`.
 - `choice`: the answer equals `violatesWhen`.
 - `score`: the rounded answer is greater than or equal to `scoreLimit`.
 
-A `noul` answer has no confidence in the Jev response, so its row omits it. The text report shows `check` and `cross` marks per rule, and a summary line.
+A `noul` answer has no confidence in the Jev response, so its row omits it. The text report shows `check` and `cross` marks per rule, and a summary that names every violated rule with the file and the questions file it comes from.
 
 ### Exit codes
 
