@@ -170,7 +170,7 @@ versions_in_channel() {
 			jq -r '[.[] | select(.prerelease == true) | .tag_name] | reverse | .[]'
 	else
 		printf '%s\n' "$releases_json" |
-			jq -r '[.[] | select(.prerelease == false) | .tag_name] | reverse | .'
+			jq -r '[.[] | select(.prerelease == false) | .tag_name] | reverse | .[]'
 	fi
 }
 
