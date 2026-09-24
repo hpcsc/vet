@@ -1,10 +1,10 @@
 package questions
 
 func Default() (File, error) {
-	return Parse([]byte(defaultFile))
+	return Parse([]byte(builtinFile))
 }
 
-const defaultFile = `version: 1
+const builtinFile = `version: 1
 rules:
   - id: no-flag-field
     instructions: |
