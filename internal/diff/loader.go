@@ -6,11 +6,6 @@ import (
 	"github.com/hpcsc/vet/internal/git"
 )
 
-type File struct {
-	Path string
-	Diff string
-}
-
 type Loader struct {
 	repo *git.Repo
 }
