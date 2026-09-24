@@ -1,13 +1,33 @@
 # vet
 
-## Build
+`vet` is a command-line tool that judges a change to code against a file of written rules / questions.
+It reviews the diff, answers each question with a model, and reports whether the change violates any rule.
+
+## Install
+
+The installer downloads the latest release for your platform, verifies its checksum, and puts the
+binary where you can start using it. It needs `sh`, `curl`, `jq`, `tar`, and `gzip`.
 
 ```shell
-task build            # build ./bin/vet
-task run -- --help    # run the CLI from the source
+sh <(curl -fsSL https://raw.githubusercontent.com/hpcsc/vet/main/scripts/install.sh)
 ```
 
-## Judge a change
+It asks for the release channel and the install directory. To skip the questions on the command line:
+
+```shell
+sh <(curl ...) --channel release --dir ~/.local/bin
+```
+
+The channel is `release` (the latest stable release) or `prerelease` (the latest build of `main`).
+Without `--dir`, the binary lands in `~/.local/bin` (or `$VET_INSTALL_DIR`). When more than one
+version is available in the channel, the installer lists them for you to pick.
+
+`GITHUB_TOKEN` or `GH_TOKEN` gives access to a private repository.
+
+`vet update` also installs from a release, and it replaces this very binary, so the installer and the
+update command do the same kind of job; use whichever you find convenient on a fresh machine.
+
+## Use
 
 ```shell
 vet                                # judge the diff from the base to HEAD against questions.yaml
@@ -54,32 +74,3 @@ Releases and prereleases are two channels. Each command installs the latest buil
 this build is a different one, so `vet update` on a prerelease goes back to the latest
 release. A build from a commit is not a release or a prerelease, so `vet update` does not
 replace it unless you add `--force`.
-
-## Goreleaser
-
-- Run goreleaser in local: `task release:local`. This will generate a snapshot build under `./dist`
-- Create a release:
-
-```shell
-git tag vX.X.X
-git push origin vX.X.X
-```
-
-This will trigger the release workflow, which runs the CI checks and then creates a Github Release with
-binaries for MacOS and Linux.
-
-Each push to `main` starts the prerelease workflow. It tags the commit with the next patch after the
-latest release, the run number and the commit, for example `v0.2.1-42.g4829f92`, publishes that tag as a
-prerelease, and then keeps only the 5 newest prereleases.
-
-`On Demand Build` builds a snapshot of any ref from Github Actions and uploads the archives as artifacts.
-
-## E2E Test
-
-The end-to-end tests run the built binary against a fake System One server and throwaway git
-repositories. They are in `e2e/`, and [docs/e2e-tests.md](docs/e2e-tests.md) tells how they work.
-
-```shell
-task test:e2e          # in Docker, as CI does
-task test:e2e:local    # on this machine, needs node
-```
