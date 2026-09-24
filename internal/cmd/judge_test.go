@@ -89,7 +89,7 @@ rules:
 			require.NoError(t, err)
 			text := j.out.(*bytes.Buffer).String()
 			require.Contains(t, text, "the rules")
-			require.Contains(t, text, "✓ no-flag-field: 0.2")
+			require.Contains(t, text, "✓ [noul] no-flag-field: 20%")
 			require.Contains(t, text, "The change violates no rule.")
 		})
 
@@ -111,7 +111,7 @@ rules:
 
 			require.NoError(t, err)
 			text := j.out.(*bytes.Buffer).String()
-			require.Contains(t, text, "✗ no-flag-field: 0.9")
+			require.Contains(t, text, "✗ [noul] no-flag-field: 90%")
 			require.Contains(t, text, "The change violates 3 rules.")
 			require.Contains(t, text, "  - no-flag-field in change.txt (the rules)")
 			require.Contains(t, text, "  - database-migration in change.txt (the rules)")

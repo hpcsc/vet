@@ -219,7 +219,7 @@ A group holds the rows of one questions file. When you pass a directory of quest
 - `choice`: the answer equals `violatesWhen`.
 - `score`: the rounded answer is greater than or equal to `scoreLimit`.
 
-A `noul` answer has no confidence in the Jev response, so its row omits it. The text report shows `check` and `cross` marks per rule, and a summary that names every violated rule with the file and the questions file it comes from. A rule with a `description` renders it in place of the `id`; a rule without one renders the `id`.
+A `noul` answer has no confidence in the Jev response, so its row omits it. The text report shows `check` and `cross` marks per rule with the rule `type` in brackets, and a summary that names every violated rule with the file and the questions file it comes from. A rule with a `description` renders it in place of the `id`; a rule without one renders the `id`. A `noul` row renders its value as a percentage.
 
 ### Exit codes
 

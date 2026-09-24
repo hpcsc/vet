@@ -2,6 +2,7 @@ package verdict
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/fatih/color"
@@ -14,6 +15,7 @@ type Row struct {
 	Description   string             `json:"description,omitempty"`
 	Path          string             `json:"path"`
 	Value         any                `json:"value"`
+	Type          questions.Kind     `json:"-"`
 	Label         string             `json:"label,omitempty"`
 	Violates      bool               `json:"violates,omitempty"`
 	Confidence    *float64           `json:"confidence,omitempty"`
@@ -68,6 +70,7 @@ func judge(rule questions.Rule, answer backend.Answer) (Row, error) {
 	row := Row{
 		Rule:          answer.Rule,
 		Description:   rule.Description,
+		Type:          rule.Type,
 		Confidence:    answer.Confidence,
 		Probabilities: answer.Probabilities,
 		Legend:        answer.Legend,
@@ -101,6 +104,15 @@ func (a Row) displayRule() string {
 	return a.Rule
 }
 
+func (a Row) displayValue() string {
+	if a.Type == questions.Noul {
+		if v, ok := a.Value.(float64); ok {
+			return fmt.Sprintf("%d%%", int(math.Round(v*100)))
+		}
+	}
+	return fmt.Sprint(a.Value)
+}
+
 func (r Report) Text() string {
 	var b strings.Builder
 	for _, g := range r.Groups {
@@ -126,7 +138,7 @@ func (r Report) Text() string {
 				mark = color.RedString("✗")
 			}
 			b.WriteString(prefix)
-			fmt.Fprintf(&b, "  %s %s: %v", mark, color.BlueString(a.displayRule()), a.Value)
+			fmt.Fprintf(&b, "  %s [%s] %s: %s", mark, color.MagentaString(string(a.Type)), color.BlueString(a.displayRule()), a.displayValue())
 			if a.Label != "" {
 				fmt.Fprintf(&b, " (%s)", a.Label)
 			}

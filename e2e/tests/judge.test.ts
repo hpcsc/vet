@@ -107,7 +107,7 @@ describe('the judge', () => {
 
     expect(result.status).toBe(0)
     expect(result.stdout).toContain('the rules')
-    expect(result.stdout).toContain('✓ The change adds a flag field to the request struct.: 0.2')
+    expect(result.stdout).toContain('✓ [noul] The change adds a flag field to the request struct.: 20%')
     expect(result.stdout).toContain('The change violates no rule.')
   })
 
@@ -119,7 +119,7 @@ describe('the judge', () => {
     const result = await runCli(repo, judgeArgs(api))
 
     expect(result.status).toBe(0)
-    expect(result.stdout).toContain('✗ How the change touches the database.: migrates (The change alters the schema.) (confidence 0.95)')
+    expect(result.stdout).toContain('✗ [choice] How the change touches the database.: migrates (The change alters the schema.) (confidence 0.95)')
     expect(result.stdout).toContain('The change violates 3 rules.')
     expect(result.stdout).toContain('- How the change touches the database. in change.txt (the rules)')
   })
