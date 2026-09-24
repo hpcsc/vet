@@ -1,7 +1,7 @@
 package questions
 
 func Default() (File, error) {
-	return Parse([]byte(builtinFile))
+	return Parse([]byte(builtinFile), "")
 }
 
 const builtinFile = `version: 1

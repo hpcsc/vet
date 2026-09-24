@@ -14,7 +14,7 @@ import (
 func mustParse(t *testing.T, text string) questions.File {
 	t.Helper()
 
-	file, err := questions.Parse([]byte(text))
+	file, err := questions.Parse([]byte(text), "")
 	require.NoError(t, err)
 	return file
 }

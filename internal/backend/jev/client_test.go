@@ -19,7 +19,7 @@ import (
 func mustParse(t *testing.T, text string) questions.File {
 	t.Helper()
 
-	file, err := questions.Parse([]byte(text))
+	file, err := questions.Parse([]byte(text), "")
 	require.NoError(t, err)
 	return file
 }
@@ -275,7 +275,7 @@ rules:
 func buildQuestions(t *testing.T, kind, extra string) questions.File {
 	t.Helper()
 
-	file, err := questions.Parse([]byte("version: 1\nrules:\n  - id: only-rule\n    instructions: a rule\n    type: " + kind + "\n" + extra + "\n"))
+	file, err := questions.Parse([]byte("version: 1\nrules:\n  - id: only-rule\n    instructions: a rule\n    type: " + kind + "\n" + extra + "\n"), "")
 	require.NoError(t, err)
 	return file
 }

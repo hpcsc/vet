@@ -43,7 +43,7 @@ rules:
 
 	t.Run("parse", func(t *testing.T) {
 		t.Run("loads all three rule kinds with their fields", func(t *testing.T) {
-			file, err := Parse([]byte(example))
+			file, err := Parse([]byte(example), "")
 
 			require.NoError(t, err)
 			require.Equal(t, 1, file.Version)
@@ -64,15 +64,79 @@ rules:
 		})
 
 		t.Run("rejects a version that is not 1", func(t *testing.T) {
-			_, err := Parse([]byte("version: 2\nrules: []"))
+			_, err := Parse([]byte("version: 2\nrules: []"), "")
 
 			require.Error(t, err)
 		})
 
 		t.Run("rejects text that is not yaml", func(t *testing.T) {
-			_, err := Parse([]byte("version: ["))
+			_, err := Parse([]byte("version: ["), "")
 
 			require.Error(t, err)
+		})
+	})
+
+	t.Run("references", func(t *testing.T) {
+		write := func(t *testing.T, dir string, name, content string) {
+			t.Helper()
+			require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600))
+		}
+
+		t.Run("a context that names a file loads the file beside the questions file", func(t *testing.T) {
+			dir := t.TempDir()
+			write(t, dir, "guidelines.md", "use slog")
+			path := filepath.Join(dir, "questions.yaml")
+			write(t, dir, "questions.yaml", "version: 1\ncontext: \"@guidelines.md\"\nrules:\n  - id: only-rule\n    instructions: does it?\n    type: noul\n    noulLimit: 0.5")
+
+			file, err := Load(path)
+
+			require.NoError(t, err)
+			require.Equal(t, "use slog", file.Context)
+		})
+
+		t.Run("an instruction that names a file loads the file beside the questions file", func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "questions.yaml")
+			write(t, dir, "explain.md", "tells what changed")
+			write(t, dir, "questions.yaml", "version: 1\nrules:\n  - id: only-rule\n    instructions: \"@explain.md\"\n    type: noul\n    noulLimit: 0.5")
+
+			file, err := Load(path)
+
+			require.NoError(t, err)
+			require.Equal(t, "tells what changed", file.Rules[0].Instructions)
+		})
+
+		t.Run("a ~ path expands to the home directory", func(t *testing.T) {
+			dir := t.TempDir()
+			write(t, dir, "guidelines.md", "use slog")
+			t.Setenv("HOME", dir)
+			text := "version: 1\ncontext: \"@~/guidelines.md\"\nrules: []"
+
+			file, err := Parse([]byte(text), "")
+
+			require.NoError(t, err)
+			require.Equal(t, "use slog", file.Context)
+		})
+
+		t.Run("a reference to a missing file is an error naming the rule", func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "questions.yaml")
+			write(t, dir, "questions.yaml", "version: 1\nrules:\n  - id: only-rule\n    instructions: \"@missing.md\"\n    type: noul\n    noulLimit: 0.5")
+
+			_, err := Load(path)
+
+			require.Error(t, err)
+			require.ErrorContains(t, err, "only-rule")
+			require.ErrorContains(t, err, "missing.md")
+		})
+
+		t.Run("a value that does not start with @ stays literal", func(t *testing.T) {
+			text := "version: 1\nrules:\n  - id: only-rule\n    instructions: Review the @-sign usage\n    type: noul\n    noulLimit: 0.5"
+
+			file, err := Parse([]byte(text), "")
+
+			require.NoError(t, err)
+			require.Equal(t, "Review the @-sign usage", file.Rules[0].Instructions)
 		})
 	})
 
@@ -105,6 +169,17 @@ rules:
 			require.Equal(t, 1, file.Version)
 			require.Len(t, file.Rules, 2)
 			require.Equal(t, []string{"first", "second"}, []string{file.Rules[0].ID, file.Rules[1].ID})
+		})
+
+		t.Run("a directory merges the contexts of its questions files", func(t *testing.T) {
+			dir := t.TempDir()
+			write(t, dir, "a.yaml", "version: 1\ncontext: use slog\nrules:\n  - id: first\n    instructions: does it?\n    type: noul\n    noulLimit: 0.5")
+			write(t, dir, "b.yaml", "version: 1\ncontext: keep secrets\nrules:\n  - id: second\n    instructions: how good?\n    type: noul\n    noulLimit: 0.5")
+
+			file, err := Load(dir)
+
+			require.NoError(t, err)
+			require.Equal(t, "use slog\n\nkeep secrets", file.Context)
 		})
 
 		t.Run("a directory accepts yaml and yml and skips the rest", func(t *testing.T) {

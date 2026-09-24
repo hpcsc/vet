@@ -13,7 +13,7 @@ func TestRule(t *testing.T) {
 	parse := func(t *testing.T, yaml string) error {
 		t.Helper()
 
-		_, err := Parse([]byte(yaml))
+		_, err := Parse([]byte(yaml), "")
 		return err
 	}
 

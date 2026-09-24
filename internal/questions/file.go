@@ -12,6 +12,7 @@ import (
 
 type File struct {
 	Version int    `yaml:"version"`
+	Context string `yaml:"context,omitempty"`
 	Rules   []Rule `yaml:"rules"`
 }
 
@@ -27,7 +28,7 @@ func Load(path string) (File, error) {
 	if err != nil {
 		return File{}, err
 	}
-	return Parse(data)
+	return Parse(data, filepath.Dir(path))
 }
 
 func loadDirectory(path string) (File, error) {
@@ -37,6 +38,8 @@ func loadDirectory(path string) (File, error) {
 	}
 	var file File
 	seen := map[string]struct{}{}
+	contexts := []string{}
+	seenContexts := map[string]struct{}{}
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -49,7 +52,7 @@ func loadDirectory(path string) (File, error) {
 		if err != nil {
 			return File{}, err
 		}
-		parsed, err := Parse(data)
+		parsed, err := Parse(data, path)
 		if err != nil {
 			return File{}, fmt.Errorf("%s: %w", name, err)
 		}
@@ -59,24 +62,77 @@ func loadDirectory(path string) (File, error) {
 			}
 			seen[rule.ID] = struct{}{}
 		}
+		if _, ok := seenContexts[parsed.Context]; !ok {
+			seenContexts[parsed.Context] = struct{}{}
+			if parsed.Context != "" {
+				contexts = append(contexts, parsed.Context)
+			}
+		}
 		file.Rules = append(file.Rules, parsed.Rules...)
 	}
 	file.Version = 1
+	if len(contexts) > 0 {
+		file.Context = strings.Join(contexts, "\n\n")
+	}
 	if len(file.Rules) == 0 {
 		return File{}, fmt.Errorf("the directory %s holds no questions files", path)
 	}
 	return file, nil
 }
 
-func Parse(data []byte) (File, error) {
+func Parse(data []byte, dir string) (File, error) {
 	var file File
 	if err := yaml.Unmarshal(data, &file); err != nil {
 		return File{}, fmt.Errorf("read the questions file: %w", err)
+	}
+	if err := file.resolveReferences(dir); err != nil {
+		return File{}, err
 	}
 	if err := file.validate(); err != nil {
 		return File{}, err
 	}
 	return file, nil
+}
+
+func (f *File) resolveReferences(dir string) error {
+	if f.Context != "" {
+		resolved, err := f.readReference(dir, f.Context)
+		if err != nil {
+			return fmt.Errorf("read the context: %w", err)
+		}
+		f.Context = resolved
+	}
+	for i := range f.Rules {
+		instructions, err := f.readReference(dir, f.Rules[i].Instructions)
+		if err != nil {
+			return fmt.Errorf("read the instructions of rule %s: %w", f.Rules[i].ID, err)
+		}
+		f.Rules[i].Instructions = instructions
+	}
+	return nil
+}
+
+func (f File) readReference(dir, value string) (string, error) {
+	if value == "" || value[0] != '@' {
+		return value, nil
+	}
+	ref := strings.TrimPrefix(value, "@")
+	if ref == "" {
+		return "", errors.New("an @ reference has no path")
+	}
+	if ref == "~" || strings.HasPrefix(ref, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			ref = filepath.Join(home, strings.TrimPrefix(ref, "~"))
+		}
+	}
+	if !filepath.IsAbs(ref) {
+		ref = filepath.Join(dir, ref)
+	}
+	data, err := os.ReadFile(ref)
+	if err != nil {
+		return "", fmt.Errorf("read the referenced file %s: %w", ref, err)
+	}
+	return string(data), nil
 }
 
 func Marshal(file File) ([]byte, error) {

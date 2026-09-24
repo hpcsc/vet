@@ -25,7 +25,7 @@ func TestDefault(t *testing.T) {
 		text, err := Marshal(file)
 
 		require.NoError(t, err)
-		again, err := Parse(text)
+		again, err := Parse(text, "")
 		require.NoError(t, err)
 		require.Equal(t, file, again)
 	})
