@@ -39,6 +39,8 @@ describe('vet config', () => {
     const result = await runCli(scratchDir(), ['config'])
 
     expect(result.status).toBe(0)
+    expect(result.stdout).toContain('apiKeyCommand:')
+    expect(result.stdout).toContain('questionsFile:')
     expect(result.stdout).toContain('apiUrl:')
     expect(result.stdout).toContain('model:')
   })

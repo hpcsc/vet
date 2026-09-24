@@ -16,10 +16,10 @@ const (
 )
 
 type Config struct {
-	APIKeyCommand string `yaml:"apiKeyCommand,omitempty"`
-	QuestionsFile string `yaml:"questionsFile,omitempty"`
-	APIURL        string `yaml:"apiUrl,omitempty"`
-	Model         string `yaml:"model,omitempty"`
+	APIKeyCommand string `yaml:"apiKeyCommand"`
+	QuestionsFile string `yaml:"questionsFile"`
+	APIURL        string `yaml:"apiUrl"`
+	Model         string `yaml:"model"`
 }
 
 func Default() Config {
