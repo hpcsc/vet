@@ -3,6 +3,7 @@ module github.com/hpcsc/vet
 go 1.26.6
 
 require (
+	charm.land/bubbletea/v2 v2.0.10
 	charm.land/lipgloss/v2 v2.0.6
 	github.com/bmatcuk/doublestar/v4 v4.10.2
 	github.com/charmbracelet/colorprofile v0.4.3

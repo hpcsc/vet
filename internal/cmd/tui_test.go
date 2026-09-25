@@ -5,9 +5,11 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/hpcsc/vet/internal/questions"
 	"github.com/hpcsc/vet/internal/verdict"
 	"github.com/stretchr/testify/require"
@@ -48,94 +50,123 @@ func manyTUIReport(count int) verdict.Report {
 	}
 }
 
-func runTUITest(input string, report verdict.Report, all bool, height int) (string, error) {
-	var out bytes.Buffer
-	err := runTUI(strings.NewReader(input), &out, report, all, func() int { return height })
-	return out.String(), err
+func tuiModelAt(t *testing.T, report verdict.Report, all bool, width, height int) tuiModel {
+	t.Helper()
+	return newTUIModel(report, all, tuiSize{width: width, height: height})
 }
 
-func tuiFrames(output string) []string {
-	parts := strings.Split(output, "\x1b[2J\x1b[H")
-	if len(parts) > 0 && parts[0] == "" {
-		return parts[1:]
+func tuiKeyMsg(name string) tea.KeyPressMsg {
+	switch name {
+	case "up":
+		return tea.KeyPressMsg(tea.Key{Code: tea.KeyUp})
+	case "down":
+		return tea.KeyPressMsg(tea.Key{Code: tea.KeyDown})
+	default:
+		return tea.KeyPressMsg(tea.Key{Code: rune(name[0]), Text: name})
 	}
-	return parts
+}
+
+func tuiPress(t *testing.T, model tuiModel, keys ...string) tuiModel {
+	t.Helper()
+	for _, key := range keys {
+		next, _ := model.Update(tuiKeyMsg(key))
+		pressed, ok := next.(tuiModel)
+		require.True(t, ok, "Update must keep the model type")
+		model = pressed
+	}
+	return model
+}
+
+func tuiRun(t *testing.T, input string, report verdict.Report, all bool, size tuiSize) string {
+	t.Helper()
+	var out bytes.Buffer
+	err := runTUI(strings.NewReader(input), &out, report, all, size)
+	require.NoError(t, err)
+	return out.String()
 }
 
 func TestTUI(t *testing.T) {
-	t.Run("shows the selected answer after navigation", func(t *testing.T) {
-		output, err := runTUITest("\x1b[Bq", tuiReport(), true, 0)
+	t.Run("run", func(t *testing.T) {
+		t.Run("draws the report on the alternate screen and returns on quit", func(t *testing.T) {
+			output := tuiRun(t, "q", tuiReport(), true, tuiSize{width: 80, height: 24})
 
-		require.NoError(t, err)
-		frames := tuiFrames(output)
-		require.Len(t, frames, 2)
-		require.Contains(t, frames[0], "> PASS change.txt  rules  [noul] passing-rule")
-		require.Contains(t, frames[0], "\nRule: passing-rule\n")
-		require.Contains(t, frames[1], "> FAIL change.txt  rules  [noul] failing-rule")
-		require.Contains(t, frames[1], "\nRule: failing-rule\n")
+			require.Contains(t, output, "\x1b[?1049h")
+			require.Contains(t, output, "vet report  base: main  violations: 1  view: all rules")
+			require.Contains(t, output, "> PASS change.txt  rules  [noul] passing-rule: 0.1")
+			require.Contains(t, output, "Rule: passing-rule")
+		})
+
+		t.Run("rejects non-interactive output", func(t *testing.T) {
+			var out bytes.Buffer
+
+			err := renderTUI(&out, tuiReport(), false)
+
+			require.EqualError(t, err, "tui output requires an interactive terminal")
+		})
 	})
 
-	t.Run("shows passing answers after the toggle key without changing the violation count", func(t *testing.T) {
-		output, err := runTUITest("aq", tuiReport(), false, 0)
+	t.Run("move", func(t *testing.T) {
+		t.Run("shows the next answer on down and on j", func(t *testing.T) {
+			model := tuiModelAt(t, tuiReport(), true, 80, 24)
+			model = tuiPress(t, model, "down")
 
-		require.NoError(t, err)
-		frames := tuiFrames(output)
-		require.Len(t, frames, 2)
-		require.Contains(t, frames[0], "violations: 1")
-		require.NotContains(t, frames[0], "passing-rule")
-		require.Contains(t, frames[1], "violations: 1")
-		require.Contains(t, frames[1], "passing-rule")
-		require.Contains(t, frames[1], "failing-rule")
+			require.Equal(t, 1, model.selected)
+			require.Contains(t, model.View().Content, "> FAIL change.txt  rules  [noul] failing-rule: 0.9")
+			require.Contains(t, model.View().Content, "\nRule: failing-rule\n")
+		})
+
+		t.Run("wraps from the first answer to the last on up", func(t *testing.T) {
+			model := tuiModelAt(t, tuiReport(), true, 80, 24)
+			model = tuiPress(t, model, "up")
+
+			require.Equal(t, 1, model.selected)
+		})
+
+		t.Run("keeps the selected row inside the terminal height", func(t *testing.T) {
+			model := tuiModelAt(t, manyTUIReport(30), true, 80, 12)
+			model = tuiPress(t, model, slices.Repeat([]string{"j"}, 20)...)
+
+			view := model.View().Content
+			require.LessOrEqual(t, strings.Count(view, "\n"), 12)
+			require.Contains(t, view, "> FAIL change.txt  rules  [noul] rule-21")
+			require.Contains(t, view, "\nRule: rule-21\n")
+			require.NotContains(t, view, "rule-01")
+		})
 	})
 
-	t.Run("keeps the selected row inside the terminal height", func(t *testing.T) {
-		output, err := runTUITest(strings.Repeat("j", 20)+"q", manyTUIReport(30), true, 12)
+	t.Run("toggle", func(t *testing.T) {
+		t.Run("shows passing answers after the toggle key without changing the violation count", func(t *testing.T) {
+			hidden := tuiModelAt(t, tuiReport(), false, 80, 24)
+			shown := tuiPress(t, hidden, "a")
 
-		require.NoError(t, err)
-		frames := tuiFrames(output)
-		require.Len(t, frames, 21)
-		last := frames[len(frames)-1]
-		require.LessOrEqual(t, strings.Count(last, "\n"), 12)
-		require.Contains(t, last, "> FAIL change.txt  rules  [noul] rule-21")
-		require.Contains(t, last, "\nRule: rule-21\n")
-		require.NotContains(t, last, "rule-01")
+			require.NotContains(t, hidden.View().Content, "passing-rule")
+			require.Contains(t, hidden.View().Content, "violations: 1")
+			require.Contains(t, shown.View().Content, "violations: 1")
+			require.Contains(t, shown.View().Content, "passing-rule")
+			require.Contains(t, shown.View().Content, "failing-rule")
+		})
+
+		t.Run("pulls the selection back when hiding rows drops the selected one", func(t *testing.T) {
+			model := tuiModelAt(t, tuiReport(), true, 80, 24)
+			model = tuiPress(t, model, "down", "a")
+
+			require.False(t, model.showAll)
+			require.Equal(t, 0, model.selected)
+		})
 	})
 
-	t.Run("shows an empty report without a panic", func(t *testing.T) {
-		output, err := runTUITest("\x1b[Bq", verdict.Report{Base: "main"}, false, 12)
+	t.Run("view", func(t *testing.T) {
+		t.Run("takes the terminal size from a resize", func(t *testing.T) {
+			model := tuiModelAt(t, tuiReport(), true, 80, 24)
+			resized, _ := model.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
 
-		require.NoError(t, err)
-		require.Contains(t, output, "No rules to display.")
-	})
+			require.Equal(t, tuiSize{width: 100, height: 40}, resized.(tuiModel).size)
+		})
 
-	t.Run("uses carriage returns for raw terminal output", func(t *testing.T) {
-		var out bytes.Buffer
-		input := []byte("one\ntwo\n")
+		t.Run("says so when the report has no rules", func(t *testing.T) {
+			model := tuiModelAt(t, verdict.Report{Base: "main"}, false, 80, 24)
 
-		n, err := rawTerminalWriter{out: &out}.Write(input)
-
-		require.NoError(t, err)
-		require.Equal(t, len(input), n)
-		require.Equal(t, "one\r\ntwo\r\n", out.String())
-	})
-
-	t.Run("rejects an unknown key", func(t *testing.T) {
-		_, err := runTUITest("z", tuiReport(), false, 0)
-
-		require.EqualError(t, err, `unknown TUI input "z"`)
-	})
-
-	t.Run("reports input that ends before quit", func(t *testing.T) {
-		_, err := runTUITest("", tuiReport(), false, 0)
-
-		require.EqualError(t, err, "TUI input ended before quit")
-	})
-
-	t.Run("rejects non-interactive output", func(t *testing.T) {
-		var out bytes.Buffer
-
-		err := renderTUI(&out, tuiReport(), false)
-
-		require.EqualError(t, err, "tui output requires an interactive terminal")
+			require.Contains(t, model.View().Content, "No rules to display.")
+		})
 	})
 }
