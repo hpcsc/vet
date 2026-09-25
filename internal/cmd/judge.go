@@ -21,6 +21,8 @@ type exitCode int
 
 func (c exitCode) Error() string { return fmt.Sprintf("exit code %d", int(c)) }
 
+type tuiRenderer func(io.Writer, verdict.Report, bool) error
+
 type judge struct {
 	out       io.Writer
 	repo      *git.Repo
@@ -30,6 +32,7 @@ type judge struct {
 	output    outputMode
 	all       bool
 	exit      bool
+	tui       tuiRenderer
 }
 
 func (j *judge) run(ctx context.Context) error {
@@ -121,8 +124,15 @@ func (j *judge) render(report verdict.Report) error {
 		enc.SetIndent("", "  ")
 		return enc.Encode(report)
 	case outputModeTUI:
-		return fmt.Errorf("TUI output requires an interactive terminal")
+		return j.renderTUI(report)
 	default:
 		return fmt.Errorf("unknown output mode %q: want text, json, or tui", mode)
 	}
+}
+
+func (j *judge) renderTUI(report verdict.Report) error {
+	if j.tui != nil {
+		return j.tui(j.out, report, j.all)
+	}
+	return renderTUI(j.out, report, j.all)
 }

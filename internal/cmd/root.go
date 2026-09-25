@@ -74,6 +74,9 @@ func judgeAction(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+	if output == outputModeTUI && !tuiTerminalAvailable(cmd.Root().Writer) {
+		return errors.New("tui output requires an interactive terminal")
+	}
 	cfg, err := resolveConfig(ctx, repoDir, cmd.String("config"), os.Getenv)
 	if err != nil {
 		return err

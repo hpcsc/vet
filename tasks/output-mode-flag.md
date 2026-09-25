@@ -23,12 +23,12 @@ Add a terminal renderer for the report in TUI mode. It should show a report over
 
 Acceptance criteria:
 
-- TUI mode can render a report and return cleanly on quit.
-- Navigation changes the selected row.
-- The visibility toggle can include or omit passing rows without changing the total violation count.
-- Interrupted or invalid input returns a useful error and restores terminal state.
-- Non-interactive execution fails clearly instead of blocking or silently falling back.
-- Renderer tests do not require a real terminal.
+- [x] TUI mode can render a report and return cleanly on quit.
+- [x] Navigation changes the selected row.
+- [x] The visibility toggle can include or omit passing rows without changing the total violation count.
+- [x] Interrupted or invalid input returns a useful error and restores terminal state.
+- [x] Non-interactive execution fails clearly instead of blocking or silently falling back.
+- [x] Renderer tests do not require a real terminal.
 
 Patterns: `internal/verdict/report.go:13-36`, `internal/verdict/report.go:122-269`, `internal/cmd/judge.go:104-115`, `go.mod`.
 

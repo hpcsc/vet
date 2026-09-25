@@ -26,7 +26,7 @@
     },
     {
       "n": 2,
-      "done": false,
+      "done": true,
       "title": "Interactive report renderer for TUI output",
       "language": "Go",
       "testable": true,
@@ -42,6 +42,8 @@
         1
       ],
       "affected_files": [
+        "internal/cmd/root.go",
+        "internal/cmd/judge.go",
         "internal/cmd/tui.go",
         "internal/cmd/tui_test.go",
         "go.mod",
