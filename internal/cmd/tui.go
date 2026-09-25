@@ -9,9 +9,27 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/hpcsc/vet/internal/style"
 	"github.com/hpcsc/vet/internal/verdict"
 	"golang.org/x/term"
 )
+
+const (
+	tuiGap        = "  "
+	tuiKindWidth  = 6
+	tuiLabelWidth = 13
+
+	// tuiValueGap keeps the value clear of the longest rule.
+	tuiValueGap = 2
+
+	// tuiFrameLines are the lines around the list: header, blank, blank,
+	// separator, details title, blank, hints.
+	tuiFrameLines = 7
+)
+
+// tuiRowHeadWidth is the marker, mark, kind and gaps that open every row.
+var tuiRowHeadWidth = lipgloss.Width(tuiGap + "▸ " + style.FailMark + tuiGap + tuiPad("choice", tuiKindWidth) + tuiGap)
 
 type tuiModel struct {
 	report   verdict.Report
@@ -29,6 +47,12 @@ type tuiRow struct {
 	path   string
 	group  string
 	answer verdict.Row
+}
+
+type tuiLine struct {
+	text   string
+	row    int
+	header bool
 }
 
 func newTUIModel(report verdict.Report, all bool, size tuiSize) tuiModel {
@@ -82,22 +106,23 @@ func (m *tuiModel) toggle() {
 	}
 }
 
-func (m *tuiModel) rows() []tuiRow {
-	report := m.visibleReport()
-	rows := make([]tuiRow, 0)
-	for _, group := range report.Groups {
-		for _, answer := range group.Answers {
-			rows = append(rows, tuiRow{path: answer.Path, group: group.Name, answer: answer})
-		}
-	}
-	return rows
-}
-
 func (m *tuiModel) visibleReport() verdict.Report {
 	if m.showAll {
 		return m.report
 	}
 	return m.report.ViolationsOnly()
+}
+
+func (m *tuiModel) rows() []tuiRow {
+	rows := make([]tuiRow, 0)
+	for _, file := range m.visibleReport().ByFile() {
+		for _, group := range file.Groups {
+			for _, answer := range group.Answers {
+				rows = append(rows, tuiRow{path: file.Path, group: group.Name, answer: answer})
+			}
+		}
+	}
+	return rows
 }
 
 func (m tuiModel) View() tea.View {
@@ -106,90 +131,267 @@ func (m tuiModel) View() tea.View {
 	return view
 }
 
-func (m *tuiModel) frame() string {
+func (m tuiModel) frame() string {
 	rows := m.rows()
+	lines := []string{m.headerLine(), ""}
+	if len(rows) == 0 {
+		lines = append(lines, tuiGap+"No rules to display.", "", m.hintLine())
+		return m.fit(lines)
+	}
+
+	fields := m.detailFields(rows[m.selected])
+	room := 0
+	if m.size.height > 0 {
+		room = m.listRoom(len(fields) + 1)
+		for room < 1 && len(fields) > 0 {
+			fields = fields[:len(fields)-1]
+			room = m.listRoom(len(fields) + 1)
+		}
+		room = max(room, 1)
+	}
+	lines = append(lines, m.listLines(rows, room)...)
+	lines = append(lines, "", m.separator(), m.detailTitle(rows[m.selected]))
+	lines = append(lines, fields...)
+	lines = append(lines, "", m.hintLine())
+	return m.fit(lines)
+}
+
+func (m tuiModel) fit(lines []string) string {
+	if m.size.height > 0 && len(lines) > m.size.height {
+		lines = lines[:m.size.height]
+	}
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func (m tuiModel) headerLine() string {
+	status := m.statusLine()
+	name := style.Bold("vet")
+	base := style.Faint(tuiGap + "·  base " + m.report.Base)
+	if m.overflow(name + base + status) {
+		base = ""
+	}
+	if m.overflow(name + base + tuiGap + status) {
+		name = ""
+	}
+	head := name + base
+	gap := m.size.width - lipgloss.Width(head) - lipgloss.Width(status)
+	if gap < 1 {
+		return tuiFit(head+tuiGap+status, m.size.width)
+	}
+	return head + strings.Repeat(" ", gap) + status
+}
+
+func (m tuiModel) statusLine() string {
 	view := "violations only"
 	if m.showAll {
 		view = "all rules"
 	}
-	lines := []string{
-		fmt.Sprintf("vet report  base: %s  violations: %d  view: %s", m.report.Base, m.report.Violations, view),
-		"↑/↓ or j/k move  a toggle passing  q quit",
-		"",
+	count := fmt.Sprintf("%d violations", m.report.Violations)
+	switch m.report.Violations {
+	case 0:
+		count = style.Pass("no violations")
+	case 1:
+		count = style.Fail("1 violation")
+	default:
+		count = style.Fail(count)
 	}
-	if len(rows) == 0 {
-		lines = append(lines, "No rules to display.")
-		return strings.Join(lines, "\n") + "\n"
+	return count + style.Faint(tuiGap+"·  "+view)
+}
+
+// overflow reports whether the parts ask for more room than the terminal has.
+func (m tuiModel) overflow(parts string) bool {
+	return m.size.width > 0 && lipgloss.Width(parts)+1 > m.size.width
+}
+
+func (m tuiModel) hintLine() string {
+	hint := tuiGap + "↑↓ or j/k move" + tuiGap + "·  a toggle passing" + tuiGap + "·  q quit"
+	if m.overflow(hint) {
+		if short := style.Faint(tuiGap + "q quit"); !m.overflow(short) {
+			return short
+		}
+	}
+	return style.Faint(hint)
+}
+
+func (m tuiModel) separator() string {
+	if m.size.width < 1 {
+		return ""
+	}
+	return style.Faint(strings.Repeat("─", m.size.width))
+}
+
+func (m tuiModel) detailTitle(row tuiRow) string {
+	rule, description := row.answer.Rule, row.answer.Description
+	if m.size.width > 0 {
+		room := m.size.width - lipgloss.Width(tuiGap+tuiGap) - lipgloss.Width("·  ")
+		rule = tuiFit(rule, room)
+		if rest := room - lipgloss.Width(rule); rest > 0 {
+			description = tuiFit(description, rest)
+		} else {
+			description = ""
+		}
+	}
+	title := tuiGap + style.Rule(rule)
+	if description != "" {
+		title += style.Faint(tuiGap + "·  " + description)
+	}
+	return title
+}
+
+func (m tuiModel) detailFields(row tuiRow) []string {
+	fields := [][2]string{}
+	if row.path != "" {
+		fields = append(fields, [2]string{"file", style.File(row.path)})
+	}
+	if row.group != "" {
+		fields = append(fields, [2]string{"group", style.Group(row.group)})
+	}
+	fields = append(fields, [2]string{"value", row.answer.DisplayValue()})
+	if row.answer.Label != "" {
+		fields = append(fields, [2]string{"label", row.answer.Label})
+	}
+	if row.answer.Confidence != nil {
+		fields = append(fields, [2]string{"confidence", fmt.Sprintf("%v", *row.answer.Confidence)})
+	}
+	if len(row.answer.Probabilities) > 0 {
+		fields = append(fields, [2]string{"probabilities", probabilityText(row.answer.Probabilities)})
+	}
+	if len(row.answer.Legend) > 0 {
+		fields = append(fields, [2]string{"legend", legendText(row.answer.Legend)})
 	}
 
-	details := tuiDetailLines(rows[m.selected])
-	rowLimit := len(rows)
-	if m.size.height > 0 {
-		rowLimit = m.size.height - len(lines) - len(details)
-		if rowLimit < 1 {
-			rowLimit = 1
+	lines := make([]string, 0, len(fields))
+	for _, field := range fields {
+		value := field[1]
+		if m.size.width > 0 {
+			value = tuiFit(value, m.size.width-lipgloss.Width(tuiGap+tuiGap)-tuiLabelWidth-1)
 		}
-		if rowLimit > len(rows) {
-			rowLimit = len(rows)
+		lines = append(lines, tuiGap+tuiGap+style.Faint(tuiPad(field[0], tuiLabelWidth+1))+value)
+	}
+	return lines
+}
+
+// listRoom is the room the list can take below the details, or zero when the
+// frame has no height to fit into.
+func (m tuiModel) listRoom(detailLines int) int {
+	if m.size.height <= 0 {
+		return 0
+	}
+	return m.size.height - detailLines - tuiFrameLines
+}
+
+func (m tuiModel) listLines(rows []tuiRow, room int) []string {
+	ruleWidth, valueWidth := m.columnWidths(rows)
+	lines := make([]tuiLine, 0, len(rows))
+	for index, row := range rows {
+		if index == 0 || row.path != rows[index-1].path {
+			lines = append(lines, tuiLine{text: tuiGap + style.File(row.path), header: true, row: index})
+		}
+		lines = append(lines, tuiLine{text: m.rowLine(row, index == m.selected, ruleWidth, valueWidth), row: index})
+	}
+	return m.draw(lines, room)
+}
+
+// columnWidths fits the rule and value columns to the terminal, giving the
+// value room first because it carries the answer.
+func (m tuiModel) columnWidths(rows []tuiRow) (rule, value int) {
+	for _, row := range rows {
+		if width := lipgloss.Width(row.answer.Rule); width > rule {
+			rule = width
+		}
+		if width := lipgloss.Width(rowValue(row)); width > value {
+			value = width
 		}
 	}
+	if m.size.width <= 0 {
+		return rule, value
+	}
+	room := max(m.size.width-tuiRowHeadWidth-tuiValueGap, 2)
+	if value > room-1 {
+		value = room - 1
+	}
+	if rule > room-value {
+		rule = room - value
+	}
+	return max(rule, 1), max(value, 1)
+}
+
+func rowValue(row tuiRow) string {
+	value := row.answer.DisplayValue()
+	if row.answer.Label != "" {
+		value += " (" + row.answer.Label + ")"
+	}
+	return value
+}
+
+func (m tuiModel) rowLine(row tuiRow, selected bool, ruleWidth, valueWidth int) string {
+	mark, markColor := style.PassMark, style.Pass
+	if row.answer.Violates {
+		mark, markColor = style.FailMark, style.Fail
+	}
+	marker := "  "
+	if selected {
+		marker = style.Bold("▸") + " "
+	}
+	rule := tuiPad(tuiFit(row.answer.Rule, ruleWidth), ruleWidth)
+	if selected {
+		rule = style.Bold(style.Rule(rule))
+	} else {
+		rule = style.Rule(rule)
+	}
+	value := tuiFit(rowValue(row), valueWidth)
+	gap := max(valueWidth-lipgloss.Width(value), tuiValueGap)
+	head := tuiGap + marker + markColor(mark) + tuiGap + style.Type(tuiPad(string(row.answer.Type), tuiKindWidth)) + tuiGap
+	return head + rule + strings.Repeat(" ", gap) + value
+}
+
+func (m tuiModel) draw(lines []tuiLine, room int) []string {
+	if room <= 0 || room >= len(lines) {
+		room = len(lines)
+	}
 	start := 0
-	if len(rows) > rowLimit {
-		start = m.selected - rowLimit/2
+	if len(lines) > room {
+		start = m.lineAt(lines) - room/2
 		if start < 0 {
 			start = 0
 		}
-		if start+rowLimit > len(rows) {
-			start = len(rows) - rowLimit
+		if start+room > len(lines) {
+			start = len(lines) - room
 		}
 	}
-	for index, row := range rows[start : start+rowLimit] {
-		lines = append(lines, tuiRowLine(row, start+index == m.selected))
+	drawn := make([]string, 0, room)
+	for _, line := range lines[start : start+room] {
+		drawn = append(drawn, line.text)
 	}
-	lines = append(lines, details...)
-	return strings.Join(lines, "\n") + "\n"
+	return drawn
 }
 
-func tuiRowLine(row tuiRow, selected bool) string {
-	marker := " "
-	if selected {
-		marker = ">"
+func (m tuiModel) lineAt(lines []tuiLine) int {
+	for index, line := range lines {
+		if !line.header && line.row == m.selected {
+			return index
+		}
 	}
-	status := "PASS"
-	if row.answer.Violates {
-		status = "FAIL"
-	}
-	line := fmt.Sprintf("%s %-4s %s  %s  [%s] %s: %v", marker, status, row.path, row.group, row.answer.Type, row.answer.Rule, row.answer.Value)
-	if row.answer.Label != "" {
-		line += fmt.Sprintf(" (%s)", row.answer.Label)
-	}
-	return line
+	return 0
 }
 
-func tuiDetailLines(row tuiRow) []string {
-	lines := []string{
-		"",
-		"Details",
-		fmt.Sprintf("Rule: %s", row.answer.Rule),
-		fmt.Sprintf("File: %s", row.path),
+// tuiFit cuts a string to the room, marking the cut. A room of zero or less
+// leaves the string alone, which is what an unknown terminal width asks for.
+func tuiFit(s string, room int) string {
+	if room <= 0 || lipgloss.Width(s) <= room {
+		return s
 	}
-	if row.group != "" {
-		lines = append(lines, fmt.Sprintf("Group: %s", row.group))
+	if room == 1 {
+		return "…"
 	}
-	if row.answer.Description != "" {
-		lines = append(lines, fmt.Sprintf("Description: %s", row.answer.Description))
+	return lipgloss.NewStyle().MaxWidth(room-1).Render(s) + "…"
+}
+
+func tuiPad(s string, to int) string {
+	if gap := to - lipgloss.Width(s); gap > 0 {
+		return s + strings.Repeat(" ", gap)
 	}
-	lines = append(lines, fmt.Sprintf("Value: %v", row.answer.Value))
-	if row.answer.Confidence != nil {
-		lines = append(lines, fmt.Sprintf("Confidence: %v", *row.answer.Confidence))
-	}
-	if len(row.answer.Probabilities) > 0 {
-		lines = append(lines, fmt.Sprintf("Probabilities: %s", probabilityText(row.answer.Probabilities)))
-	}
-	if len(row.answer.Legend) > 0 {
-		lines = append(lines, fmt.Sprintf("Legend: %s", legendText(row.answer.Legend)))
-	}
-	return lines
+	return s
 }
 
 func probabilityText(values map[string]float64) string {

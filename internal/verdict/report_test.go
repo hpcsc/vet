@@ -233,6 +233,44 @@ rules:
 		})
 	})
 
+	t.Run("byFile", func(t *testing.T) {
+		t.Run("collects the answers of one file under the questions file that asked", func(t *testing.T) {
+			report, err := Judge("origin/main", groupedFile, []backend.Answer{
+				{Path: "a.go", Rule: "no-flag-field", Noul: noul(0.9)},
+				{Path: "a.go", Rule: "database-migration", Choice: choice("migrates")},
+				{Path: "b.go", Rule: "database-migration", Choice: choice("migrates")},
+			})
+			require.NoError(t, err)
+
+			files := report.ByFile()
+
+			require.Len(t, files, 2)
+			require.Equal(t, "a.go", files[0].Path)
+			require.Len(t, files[0].Groups, 2)
+			require.Equal(t, "the flags", files[0].Groups[0].Name)
+			require.Equal(t, "the db", files[0].Groups[1].Name)
+			require.Equal(t, "b.go", files[1].Path)
+			require.Len(t, files[1].Groups, 1)
+			require.Equal(t, "the db", files[1].Groups[0].Name)
+		})
+
+		t.Run("keeps the files in the order the report first answers them", func(t *testing.T) {
+			report, err := Judge("origin/main", groupedFile, []backend.Answer{
+				{Path: "c.go", Rule: "database-migration", Choice: choice("migrates")},
+				{Path: "a.go", Rule: "no-flag-field", Noul: noul(0.9)},
+				{Path: "b.go", Rule: "database-migration", Choice: choice("migrates")},
+			})
+			require.NoError(t, err)
+
+			paths := make([]string, 0, 3)
+			for _, file := range report.ByFile() {
+				paths = append(paths, file.Path)
+			}
+
+			require.Equal(t, []string{"c.go", "a.go", "b.go"}, paths)
+		})
+	})
+
 	t.Run("text", func(t *testing.T) {
 		t.Run("renders each file with a check or a cross per rule and its label", func(t *testing.T) {
 			report, err := Judge("origin/main", file, []backend.Answer{
@@ -354,5 +392,33 @@ rules:
 			require.Contains(t, text, "The change violates no rule.")
 			require.Contains(t, report.TextWithPassing(), "  ✓ [noul] the change adds a flag field: 10%")
 		})
+	})
+}
+
+func TestRow(t *testing.T) {
+	t.Run("shows the description in place of the rule id when the row has one", func(t *testing.T) {
+		row := Row{Rule: "no-flag-field", Description: "the change adds a flag field"}
+
+		require.Equal(t, "the change adds a flag field", row.DisplayRule())
+	})
+
+	t.Run("falls back to the rule id when the row has no description", func(t *testing.T) {
+		row := Row{Rule: "no-flag-field"}
+
+		require.Equal(t, "no-flag-field", row.DisplayRule())
+	})
+
+	t.Run("renders a noul value as a percentage", func(t *testing.T) {
+		row := Row{Rule: "no-flag-field", Type: questions.Noul, Value: 0.945}
+
+		require.Equal(t, "95%", row.DisplayValue())
+	})
+
+	t.Run("renders a choice or score value as it stands", func(t *testing.T) {
+		choice := Row{Rule: "database-migration", Type: questions.Choice, Value: "migrates"}
+		score := Row{Rule: "log-guideline", Type: questions.Score, Value: 2}
+
+		require.Equal(t, "migrates", choice.DisplayValue())
+		require.Equal(t, "2", score.DisplayValue())
 	})
 }

@@ -13,6 +13,8 @@ const (
 )
 
 var (
+	boldStyle  = lipgloss.NewStyle().Bold(true)
+	faintStyle = lipgloss.NewStyle().Faint(true)
 	fileColor  = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 	groupColor = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
 	typeColor  = lipgloss.NewStyle().Foreground(lipgloss.Color("5"))
@@ -25,6 +27,8 @@ var (
 	useColor = colorprofile.Detect(os.Stdout, os.Environ()) > colorprofile.Ascii
 )
 
+func Bold(s string) string  { return colorize(boldStyle, s) }
+func Faint(s string) string { return colorize(faintStyle, s) }
 func File(s string) string  { return colorize(fileColor, s) }
 func Group(s string) string { return colorize(groupColor, s) }
 func Type(s string) string  { return colorize(typeColor, s) }

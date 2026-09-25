@@ -14,6 +14,8 @@ func TestStyle(t *testing.T) {
 
 		require.Equal(t, "change.txt", File("change.txt"))
 		require.Equal(t, FailMark, Fail(FailMark))
+		require.Equal(t, "vet", Bold("vet"))
+		require.Equal(t, "q quit", Faint("q quit"))
 	})
 
 	t.Run("gives each part of a report its own color", func(t *testing.T) {
@@ -25,6 +27,13 @@ func TestStyle(t *testing.T) {
 		require.Equal(t, "\x1b[34mno-secrets\x1b[m", Rule("no-secrets"))
 		require.Equal(t, "\x1b[32m"+PassMark+"\x1b[m", Pass(PassMark))
 		require.Equal(t, "\x1b[31m"+FailMark+"\x1b[m", Fail(FailMark))
+	})
+
+	t.Run("sets the weight the interactive view needs", func(t *testing.T) {
+		setColor(t, true)
+
+		require.Equal(t, "\x1b[1mvet\x1b[m", Bold("vet"))
+		require.Equal(t, "\x1b[2mq quit\x1b[m", Faint("q quit"))
 	})
 }
 

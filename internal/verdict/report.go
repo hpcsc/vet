@@ -103,14 +103,14 @@ func judge(rule questions.Rule, answer backend.Answer) (Row, error) {
 	return row, nil
 }
 
-func (a Row) displayRule() string {
+func (a Row) DisplayRule() string {
 	if a.Description != "" {
 		return a.Description
 	}
 	return a.Rule
 }
 
-func (a Row) displayValue() string {
+func (a Row) DisplayValue() string {
 	if a.Type == questions.Noul {
 		if v, ok := a.Value.(float64); ok {
 			return fmt.Sprintf("%d%%", int(math.Round(v*100)))
@@ -140,10 +140,49 @@ func (r Report) ViolationsOnly() Report {
 	return filtered
 }
 
-type fileGroup struct {
-	path         string
-	groups       []Group
-	groupIndexes map[string]int
+type FileGroup struct {
+	Path   string
+	Groups []Group
+}
+
+func (r Report) ByFile() []FileGroup {
+	files := make([]FileGroup, 0)
+	fileIndexes := map[string]int{}
+	for _, group := range r.Groups {
+		for _, answer := range group.Answers {
+			file, ok := fileIndexes[answer.Path]
+			if !ok {
+				file = len(files)
+				fileIndexes[answer.Path] = file
+				files = append(files, FileGroup{Path: answer.Path})
+			}
+			groupIndex := len(files[file].Groups)
+			for index, existing := range files[file].Groups {
+				if existing.Name == group.Name {
+					groupIndex = index
+					break
+				}
+			}
+			if groupIndex == len(files[file].Groups) {
+				files[file].Groups = append(files[file].Groups, Group{Name: group.Name})
+			}
+			files[file].Groups[groupIndex].Answers = append(files[file].Groups[groupIndex].Answers, answer)
+		}
+	}
+	if len(r.fileOrder) == 0 {
+		return files
+	}
+	ordered := make([]FileGroup, 0, len(files))
+	filesByPath := make(map[string]FileGroup, len(files))
+	for _, file := range files {
+		filesByPath[file.Path] = file
+	}
+	for _, path := range r.fileOrder {
+		if file, ok := filesByPath[path]; ok {
+			ordered = append(ordered, file)
+		}
+	}
+	return ordered
 }
 
 func (r Report) Text() string {
@@ -155,43 +194,11 @@ func (r Report) TextWithPassing() string {
 }
 
 func (r Report) text(showPassing bool) string {
-	files := make([]fileGroup, 0)
-	fileIndexes := map[string]int{}
-	for _, group := range r.Groups {
-		for _, answer := range group.Answers {
-			file, ok := fileIndexes[answer.Path]
-			if !ok {
-				file = len(files)
-				fileIndexes[answer.Path] = file
-				files = append(files, fileGroup{path: answer.Path, groupIndexes: map[string]int{}})
-			}
-			groupIndex, ok := files[file].groupIndexes[group.Name]
-			if !ok {
-				groupIndex = len(files[file].groups)
-				files[file].groupIndexes[group.Name] = groupIndex
-				files[file].groups = append(files[file].groups, Group{Name: group.Name})
-			}
-			files[file].groups[groupIndex].Answers = append(files[file].groups[groupIndex].Answers, answer)
-		}
-	}
-	if len(r.fileOrder) > 0 {
-		ordered := make([]fileGroup, 0, len(files))
-		filesByPath := make(map[string]fileGroup, len(files))
-		for _, file := range files {
-			filesByPath[file.path] = file
-		}
-		for _, path := range r.fileOrder {
-			if file, ok := filesByPath[path]; ok {
-				ordered = append(ordered, file)
-			}
-		}
-		files = ordered
-	}
-
+	files := r.ByFile()
 	var b strings.Builder
 	for _, file := range files {
 		fileWritten := false
-		for _, group := range file.groups {
+		for _, group := range file.Groups {
 			answers := group.Answers
 			if !showPassing {
 				answers = make([]Row, 0, len(group.Answers))
@@ -205,7 +212,7 @@ func (r Report) text(showPassing bool) string {
 				continue
 			}
 			if !fileWritten {
-				b.WriteString(style.File(file.path))
+				b.WriteString(style.File(file.Path))
 				b.WriteString("\n")
 				fileWritten = true
 			}
@@ -222,7 +229,7 @@ func (r Report) text(showPassing bool) string {
 					mark = style.Fail(style.FailMark)
 				}
 				b.WriteString(prefix)
-				fmt.Fprintf(&b, "%s [%s] %s: %s", mark, style.Type(string(answer.Type)), style.Rule(answer.displayRule()), answer.displayValue())
+				fmt.Fprintf(&b, "%s [%s] %s: %s", mark, style.Type(string(answer.Type)), style.Rule(answer.DisplayRule()), answer.DisplayValue())
 				if answer.Label != "" {
 					fmt.Fprintf(&b, " (%s)", answer.Label)
 				}
@@ -246,16 +253,16 @@ func (r Report) text(showPassing bool) string {
 		fmt.Fprintf(&b, "The change violates %d rules.\n", r.Violations)
 	}
 	for _, file := range files {
-		for _, group := range file.groups {
+		for _, group := range file.Groups {
 			for _, answer := range group.Answers {
 				if !answer.Violates {
 					continue
 				}
 				b.WriteString("  - ")
-				b.WriteString(style.Rule(answer.displayRule()))
-				if file.path != "" {
+				b.WriteString(style.Rule(answer.DisplayRule()))
+				if file.Path != "" {
 					b.WriteString(" in ")
-					b.WriteString(style.File(file.path))
+					b.WriteString(style.File(file.Path))
 				}
 				if group.Name != "" {
 					b.WriteString(" (")
