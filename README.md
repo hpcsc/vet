@@ -3,6 +3,18 @@
 `vet` is a command-line tool that judges a change to code against a file of written rules / questions.
 It reviews the diff, answers each question with a model, and reports whether the change violates any rule.
 
+## Why not a golangci-lint plugin?
+
+`golangci-lint` is designed for `go/analysis` analyzers that inspect loaded Go packages. `vet` is
+repository-level: it compares a Git diff, reads YAML questions, and can judge any changed file,
+including non-Go files. Its results are file-level and come from an external model rather than local
+static analysis.
+
+A plugin would need to run Git itself, turn each violation into a positioned `analysis.Diagnostic`,
+and manage network calls, concurrency, retries, timeouts, and caching. It would also require a custom
+`golangci-lint` build and couple Jev to the plugin lifecycle without improving the core workflow.
+Keeping `vet` as a separate command preserves its repository scope and report format.
+
 ## Install
 
 The installer downloads the latest release for your platform, verifies its checksum, and puts the
