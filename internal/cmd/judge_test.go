@@ -65,6 +65,19 @@ rules:
 		{Rule: "log-guideline", Score: score(2)},
 	}
 
+	goOnlyQuestions := `version: 1
+name: go rules
+rules:
+  - id: no-flag-field
+    instructions: adds a flag field
+    type: noul
+    noulLimit: 0.5
+    files:
+      - "**/*.go"
+`
+
+	goAnswer := []backend.Answer{{Rule: "no-flag-field", Noul: noul(0.2)}}
+
 	setup := func(t *testing.T, answers []backend.Answer) (judge, *gittest.Repo) {
 		t.Helper()
 		repo := gittest.NewWithRemote(t)
@@ -238,6 +251,49 @@ rules:
 			require.Len(t, files, 1)
 			require.Equal(t, "change.txt", files[0].Path)
 			require.Contains(t, files[0].Diff, "@@")
+		})
+
+		t.Run("does not ask about a file that no rule applies to", func(t *testing.T) {
+			repo := gittest.NewWithRemote(t)
+			repo.Commit("change.txt", "one\n", "Change a file")
+			fake := backend.NewFake().WithAnswers(cleanAnswers...)
+			questionsPath := filepath.Join(t.TempDir(), "questions.yaml")
+			require.NoError(t, os.WriteFile(questionsPath, []byte(goOnlyQuestions), 0o644))
+			j := judge{
+				repo:      git.New(repo.Dir),
+				backend:   fake,
+				out:       &bytes.Buffer{},
+				questions: questionsPath,
+				base:      "origin/main",
+			}
+
+			err := j.run(ctx)
+
+			require.NoError(t, err)
+			require.Empty(t, fake.Files())
+			require.Contains(t, j.out.(*bytes.Buffer).String(), "The change violates no rule.")
+		})
+
+		t.Run("asks about a file that a rule applies to", func(t *testing.T) {
+			repo := gittest.NewWithRemote(t)
+			repo.Commit("internal/repo.go", "package main\n", "Change Go code")
+			fake := backend.NewFake().WithAnswers(goAnswer...)
+			questionsPath := filepath.Join(t.TempDir(), "questions.yaml")
+			require.NoError(t, os.WriteFile(questionsPath, []byte(goOnlyQuestions), 0o644))
+			j := judge{
+				repo:      git.New(repo.Dir),
+				backend:   fake,
+				out:       &bytes.Buffer{},
+				questions: questionsPath,
+				base:      "origin/main",
+			}
+
+			err := j.run(ctx)
+
+			require.NoError(t, err)
+			files := fake.Files()
+			require.Len(t, files, 1)
+			require.Equal(t, "internal/repo.go", files[0].Path)
 		})
 	})
 }

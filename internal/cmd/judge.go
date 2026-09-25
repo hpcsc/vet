@@ -73,7 +73,11 @@ func (j *judge) askAll(ctx context.Context, file questions.File, files []diff.Fi
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			raw, err := j.backend.Ask(ctx, f, file)
+			scoped, ok := file.ForPath(f.Path)
+			if !ok {
+				return
+			}
+			raw, err := j.backend.Ask(ctx, f, scoped)
 			if err == nil {
 				answers := make([]backend.Answer, len(raw))
 				for k, a := range raw {
