@@ -69,6 +69,18 @@ rules:
 			require.Error(t, err)
 		})
 
+		t.Run("rejects an invalid top-level files pattern", func(t *testing.T) {
+			_, err := Parse([]byte("version: 1\nfiles:\n  - \"[bad\"\nrules: []"), "")
+
+			require.ErrorContains(t, err, "files pattern")
+		})
+
+		t.Run("rejects an invalid top-level exclude pattern", func(t *testing.T) {
+			_, err := Parse([]byte("version: 1\nexclude:\n  - \"[bad\"\nrules: []"), "")
+
+			require.ErrorContains(t, err, "exclude pattern")
+		})
+
 		t.Run("rejects text that is not yaml", func(t *testing.T) {
 			_, err := Parse([]byte("version: ["), "")
 
@@ -157,6 +169,75 @@ rules:
 		t.Run("a path no rule applies to yields nothing", func(t *testing.T) {
 			_, ok := file.ForPath("README.md")
 
+			require.False(t, ok)
+		})
+	})
+
+	t.Run("file scope", func(t *testing.T) {
+		const scoped = `version: 1
+files:
+  - "**/*.go"
+exclude:
+  - "**/*_test.go"
+rules:
+  - id: inherited
+    instructions: does it?
+    type: noul
+    noulLimit: 0.5
+  - id: own-files
+    instructions: does it?
+    type: noul
+    noulLimit: 0.5
+    files:
+      - "**/*_test.go"
+  - id: own-exclude
+    instructions: does it?
+    type: noul
+    noulLimit: 0.5
+    exclude:
+      - "**/mocks/**"
+`
+
+		t.Run("a rule without its own scope inherits the file scope", func(t *testing.T) {
+			file, err := Parse([]byte(scoped), "")
+
+			require.NoError(t, err)
+			rule := file.Rules[0]
+			require.Equal(t, []string{"**/*.go"}, rule.Files)
+			require.Equal(t, []string{"**/*_test.go"}, rule.Exclude)
+		})
+
+		t.Run("a rule with its own files overrides the file files", func(t *testing.T) {
+			file, err := Parse([]byte(scoped), "")
+
+			require.NoError(t, err)
+			rule := file.Rules[1]
+			require.Equal(t, []string{"**/*_test.go"}, rule.Files)
+			require.Equal(t, []string{"**/*_test.go"}, rule.Exclude)
+		})
+
+		t.Run("a rule keeps its own exclude alongside the file exclude", func(t *testing.T) {
+			file, err := Parse([]byte(scoped), "")
+
+			require.NoError(t, err)
+			rule := file.Rules[2]
+			require.Equal(t, []string{"**/*.go"}, rule.Files)
+			require.Equal(t, []string{"**/*_test.go", "**/mocks/**"}, rule.Exclude)
+		})
+
+		t.Run("a path the file scope rejects applies to no rule", func(t *testing.T) {
+			file, err := Parse([]byte(scoped), "")
+
+			require.NoError(t, err)
+			_, ok := file.ForPath("README.md")
+			require.False(t, ok)
+		})
+
+		t.Run("a path the file exclude rejects applies to no rule", func(t *testing.T) {
+			file, err := Parse([]byte(scoped), "")
+
+			require.NoError(t, err)
+			_, ok := file.ForPath("internal/repo_test.go")
 			require.False(t, ok)
 		})
 	})
@@ -267,6 +348,22 @@ rules:
 			_, err := Load(dir)
 
 			require.ErrorContains(t, err, "a.yaml")
+		})
+
+		t.Run("a directory folds each file's scope onto its own rules", func(t *testing.T) {
+			dir := t.TempDir()
+			write(t, dir, "a.yaml", "version: 1\nfiles:\n  - \"**/*.go\"\n  - \"**/*_test.go\"\nrules:\n  - id: go-rule\n    instructions: does it?\n    type: noul\n    noulLimit: 0.5")
+			write(t, dir, "b.yaml", "version: 1\nfiles:\n  - \"**/*_test.go\"\nrules:\n  - id: test-rule\n    instructions: how good?\n    type: noul\n    noulLimit: 0.5")
+
+			file, err := Load(dir)
+
+			require.NoError(t, err)
+			scoped, ok := file.ForPath("internal/repo.go")
+			require.True(t, ok)
+			require.Equal(t, []string{"go-rule"}, ruleIDs(scoped))
+			scoped, ok = file.ForPath("internal/repo_test.go")
+			require.True(t, ok)
+			require.Equal(t, []string{"go-rule", "test-rule"}, ruleIDs(scoped))
 		})
 
 		t.Run("an id in two files is rejected", func(t *testing.T) {

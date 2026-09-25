@@ -7,14 +7,17 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/bmatcuk/doublestar/v4"
 	"go.yaml.in/yaml/v3"
 )
 
 type File struct {
-	Version int    `yaml:"version"`
-	Name    string `yaml:"name,omitempty"`
-	Context string `yaml:"context,omitempty"`
-	Rules   []Rule `yaml:"rules"`
+	Version int      `yaml:"version"`
+	Name    string   `yaml:"name,omitempty"`
+	Context string   `yaml:"context,omitempty"`
+	Files   []string `yaml:"files,omitempty"`
+	Exclude []string `yaml:"exclude,omitempty"`
+	Rules   []Rule   `yaml:"rules"`
 }
 
 func Load(path string) (File, error) {
@@ -107,7 +110,25 @@ func Parse(data []byte, dir string) (File, error) {
 	if err := file.validate(); err != nil {
 		return File{}, err
 	}
+	file.foldScope()
 	return file, nil
+}
+
+func (f *File) foldScope() {
+	if len(f.Files) == 0 && len(f.Exclude) == 0 {
+		return
+	}
+	for i := range f.Rules {
+		rule := &f.Rules[i]
+		if len(rule.Files) == 0 {
+			rule.Files = append([]string(nil), f.Files...)
+		}
+		if len(f.Exclude) > 0 {
+			rule.Exclude = append(append([]string(nil), f.Exclude...), rule.Exclude...)
+		}
+	}
+	f.Files = nil
+	f.Exclude = nil
 }
 
 func (f *File) resolveReferences(dir string) error {
@@ -158,6 +179,16 @@ func Marshal(file File) ([]byte, error) {
 func (f File) validate() error {
 	if f.Version != 1 {
 		return errors.New("unsupported version, only version 1 is supported")
+	}
+	for _, pattern := range f.Files {
+		if !doublestar.ValidatePattern(pattern) {
+			return fmt.Errorf("the questions file has an invalid files pattern %s", pattern)
+		}
+	}
+	for _, pattern := range f.Exclude {
+		if !doublestar.ValidatePattern(pattern) {
+			return fmt.Errorf("the questions file has an invalid exclude pattern %s", pattern)
+		}
 	}
 	for _, rule := range f.Rules {
 		if err := rule.validate(); err != nil {

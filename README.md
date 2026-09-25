@@ -96,15 +96,22 @@ rules:
     noulLimit: 0.5
 ```
 
-### Scoping a rule to files
+### Scoping rules to files
 
 A rule can limit itself to some files and away from others. `files` holds globs of the
 file paths the rule applies to, `exclude` removes the matched paths again, and `**`
 crosses directories. A rule without `files` applies to every file, and an `exclude`
-alone means every file but the matched ones:
+alone means every file but the matched ones.
+
+The scope can sit once at the top of the questions file, above `rules`, instead of on
+every rule. Each rule without its own `files` inherits the file's, a rule with its own
+`files` replaces it, and the excludes of the file and the rule both apply:
 
 ```yaml
 version: 1
+name: Go naming
+files:
+  - "**/*.go"
 rules:
   - id: go-naming
     description: The change names the identifiers well.
@@ -112,9 +119,14 @@ rules:
     type: score
     scores: [well, poorly]
     scoreLimit: 1
-    files:
-      - "**/*.go"
     exclude:
+      - "**/*_test.go"
+  - id: test-file-name
+    description: A test file is named for the file it tests.
+    instructions: A test support file is named for its role.
+    type: noul
+    noulLimit: 0.5
+    files:
       - "**/*_test.go"
 ```
 

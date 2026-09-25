@@ -113,6 +113,8 @@ rules:
       - "**/*_test.go"
 ```
 
+The scope can sit once at the top of the questions file instead of on every rule. A rule without its own `files` inherits the file's, and the excludes of the file and the rule both apply. The loader folds the top-level scope onto each rule, so a rule with its own `files` replaces the inherited include.
+
 A changed file that no rule applies to is skipped: the tool does not ask the backend about it, so a change to a README answers none of the Go naming rules.
 
 `context` and `instructions` also accept a file reference: when the value begins with `@`, the tool reads the file and uses its content instead. The path is relative to the questions file, and a leading `~` expands to the home directory. This lets a rule point at the guideline it measures instead of copying it, and lets one questions file reuse the same guideline files as the repository's other tooling.
