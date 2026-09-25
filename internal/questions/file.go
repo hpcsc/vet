@@ -166,3 +166,14 @@ func (f File) validate() error {
 	}
 	return nil
 }
+
+func (f File) ForPath(path string) (File, bool) {
+	var rules []Rule
+	for _, rule := range f.Rules {
+		if rule.AppliesTo(path) {
+			rules = append(rules, rule)
+		}
+	}
+	f.Rules = rules
+	return f, len(rules) > 0
+}

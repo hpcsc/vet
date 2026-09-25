@@ -59,6 +59,49 @@ func TestRule(t *testing.T) {
 
 			require.ErrorContains(t, err, "type")
 		})
+
+		t.Run("an invalid files pattern is rejected", func(t *testing.T) {
+			err := parse(t, "version: 1\nrules:\n  - id: a-rule\n    instructions: does it?\n    type: noul\n    noulLimit: 0.5\n    files:\n      - \"[bad\"")
+
+			require.ErrorContains(t, err, "files pattern")
+		})
+
+		t.Run("an invalid exclude pattern is rejected", func(t *testing.T) {
+			err := parse(t, "version: 1\nrules:\n  - id: a-rule\n    instructions: does it?\n    type: noul\n    noulLimit: 0.5\n    exclude:\n      - \"[bad\"")
+
+			require.ErrorContains(t, err, "exclude pattern")
+		})
+	})
+
+	t.Run("applies-to", func(t *testing.T) {
+		t.Run("a rule with no files applies to every path", func(t *testing.T) {
+			rule := Rule{ID: "a-rule"}
+
+			require.True(t, rule.AppliesTo("README.md"))
+			require.True(t, rule.AppliesTo("internal/repo.go"))
+		})
+
+		t.Run("a files pattern crosses directories", func(t *testing.T) {
+			rule := Rule{ID: "a-rule", Files: []string{"**/*.go"}}
+
+			require.True(t, rule.AppliesTo("internal/repo.go"))
+			require.True(t, rule.AppliesTo("repo.go"))
+			require.False(t, rule.AppliesTo("README.md"))
+		})
+
+		t.Run("an exclude pattern removes a path the files pattern matched", func(t *testing.T) {
+			rule := Rule{ID: "a-rule", Files: []string{"**/*.go"}, Exclude: []string{"**/*_test.go"}}
+
+			require.False(t, rule.AppliesTo("internal/repo_test.go"))
+			require.True(t, rule.AppliesTo("internal/repo.go"))
+		})
+
+		t.Run("an exclude alone applies to every path but the matched ones", func(t *testing.T) {
+			rule := Rule{ID: "a-rule", Exclude: []string{"**/*_test.go"}}
+
+			require.False(t, rule.AppliesTo("internal/repo_test.go"))
+			require.True(t, rule.AppliesTo("README.md"))
+		})
 	})
 }
 

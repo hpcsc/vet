@@ -140,6 +140,27 @@ rules:
 		})
 	})
 
+	t.Run("for-path", func(t *testing.T) {
+		file, err := Parse([]byte(example), "")
+		require.NoError(t, err)
+		for i := range file.Rules {
+			file.Rules[i].Files = []string{"**/*.go"}
+		}
+
+		t.Run("keeps every rule that applies to the path", func(t *testing.T) {
+			scoped, ok := file.ForPath("internal/repo.go")
+
+			require.True(t, ok)
+			require.Equal(t, []string{"no-flag-field", "database-migration", "log-guideline"}, ruleIDs(scoped))
+		})
+
+		t.Run("a path no rule applies to yields nothing", func(t *testing.T) {
+			_, ok := file.ForPath("README.md")
+
+			require.False(t, ok)
+		})
+	})
+
 	t.Run("load", func(t *testing.T) {
 		write := func(t *testing.T, dir string, name, content string) {
 			t.Helper()
@@ -258,4 +279,12 @@ rules:
 			require.ErrorContains(t, err, "more than one")
 		})
 	})
+}
+
+func ruleIDs(file File) []string {
+	ids := make([]string, len(file.Rules))
+	for i, rule := range file.Rules {
+		ids[i] = rule.ID
+	}
+	return ids
 }

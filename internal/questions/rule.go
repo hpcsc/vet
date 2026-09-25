@@ -3,6 +3,8 @@ package questions
 import (
 	"errors"
 	"fmt"
+
+	"github.com/bmatcuk/doublestar/v4"
 )
 
 type Rule struct {
@@ -15,7 +17,30 @@ type Rule struct {
 	ViolatesWhen string            `yaml:"violatesWhen,omitempty"`
 	Scores       []string          `yaml:"scores,omitempty"`
 	ScoreLimit   *int              `yaml:"scoreLimit,omitempty"`
+	Files        []string          `yaml:"files,omitempty"`
+	Exclude      []string          `yaml:"exclude,omitempty"`
 	Source       string            `yaml:"-"`
+}
+
+func (r Rule) AppliesTo(path string) bool {
+	if len(r.Files) > 0 {
+		matched := false
+		for _, pattern := range r.Files {
+			if ok, _ := doublestar.Match(pattern, path); ok {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return false
+		}
+	}
+	for _, pattern := range r.Exclude {
+		if ok, _ := doublestar.Match(pattern, path); ok {
+			return false
+		}
+	}
+	return true
 }
 
 func (r Rule) validate() error {
@@ -46,6 +71,16 @@ func (r Rule) validate() error {
 		}
 		if *r.ScoreLimit < 0 || *r.ScoreLimit >= len(r.Scores) {
 			return fmt.Errorf("rule %s has scoreLimit %d outside the scores range", r.ID, *r.ScoreLimit)
+		}
+	}
+	for _, pattern := range r.Files {
+		if !doublestar.ValidatePattern(pattern) {
+			return fmt.Errorf("rule %s has an invalid files pattern %s", r.ID, pattern)
+		}
+	}
+	for _, pattern := range r.Exclude {
+		if !doublestar.ValidatePattern(pattern) {
+			return fmt.Errorf("rule %s has an invalid exclude pattern %s", r.ID, pattern)
 		}
 	}
 	return nil

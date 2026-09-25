@@ -16,6 +16,10 @@ rules:
       Does the change add a flag or knob that toggles behaviour?
     type: noul
     noulLimit: 0.5
+    files:
+      - "**/*.go"
+    exclude:
+      - "**/*_test.go"
 
   - id: touches-database
     description: How the change touches the database.
