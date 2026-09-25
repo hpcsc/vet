@@ -38,6 +38,7 @@ A code review checks a diff against guidelines that live in the reviewer's memor
 | `--questions` | The config, then `questions.yaml` in the working directory | The path of the questions file, or a directory of them |
 | `--config` | `$XDG_CONFIG_HOME/vet/config.yaml` (or `~/.config/vet/config.yaml`) | The path of the config file |
 | `--json` | Off | Print the report as JSON |
+| `--all` | Off | Show passing and failing rules |
 | `--exit-code` | Off | Exit 1 when the change violates a rule |
 | `--api-key` | `TYPESAFE_API_KEY`, then the config `api-key-command` | The API key |
 | `--api-url` | `TYPESAFE_API_URL`, then the config, then `https://api.typesafe.ai/v1/systemone` | The backend endpoint |
@@ -209,7 +210,9 @@ Retry policy:
 
 ### The verdict
 
-`internal/verdict` turns answers into a report grouped by questions file. Each rule becomes one row, and a row carries the file it judged.
+`internal/verdict` turns answers into a report. The text report groups rows by changed file, then by
+questions file. JSON keeps the existing questions-file groups for compatibility. Each rule becomes one
+row, and a row carries the file it judged.
 
 ```json
 {
@@ -234,13 +237,16 @@ Retry policy:
 }
 ```
 
-A group holds the rows of one questions file. When you pass a directory of questions files, the report groups by file; each group is labeled by the questions file's `name`, or its file name. The verdict checks the violation rule for the question type:
+When you pass a directory of questions files, each text group is labeled by the questions file's `name`, or
+its file name. Passing rules are omitted from text and JSON by default; `--all` includes them in both
+outputs. The JSON report retains its questions-file-first `groups` shape. The verdict checks the violation
+rule for the question type:
 
 - `noul`: the answer is greater than or equal to `noulLimit`.
 - `choice`: the answer equals `violatesWhen`.
 - `score`: the rounded answer is greater than or equal to `scoreLimit`.
 
-A `noul` answer has no confidence in the Jev response, so its row omits it. The text report shows `check` and `cross` marks per rule with the rule `type` in brackets, and a summary that names every violated rule with the file and the questions file it comes from. A rule with a `description` renders it in place of the `id`; a rule without one renders the `id`. A `noul` row renders its value as a percentage.
+A `noul` answer has no confidence in the Jev response, so its row omits it. The text report shows a check or cross per visible rule with the rule `type` in brackets, and a summary that names every violated rule with the changed file and the questions file it comes from. A rule with a `description` renders it in place of the `id`; a rule without one renders the `id`. A `noul` row renders its value as a percentage.
 
 ### Exit codes
 
