@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/fatih/color"
 	"github.com/hpcsc/vet/internal/backend/jev"
 	"github.com/hpcsc/vet/internal/config"
 	"github.com/hpcsc/vet/internal/git"
+	"github.com/hpcsc/vet/internal/style"
 	"github.com/hpcsc/vet/internal/version"
 	"github.com/urfave/cli/v3"
 )
@@ -26,7 +26,7 @@ func Run(ctx context.Context) int {
 			return int(code)
 		}
 
-		color.Red(err.Error())
+		fmt.Println(style.Fail(err.Error()))
 		return 2
 	}
 

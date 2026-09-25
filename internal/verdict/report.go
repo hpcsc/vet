@@ -5,9 +5,9 @@ import (
 	"math"
 	"strings"
 
-	"github.com/fatih/color"
 	"github.com/hpcsc/vet/internal/backend"
 	"github.com/hpcsc/vet/internal/questions"
+	"github.com/hpcsc/vet/internal/style"
 )
 
 type Row struct {
@@ -205,24 +205,24 @@ func (r Report) text(showPassing bool) string {
 				continue
 			}
 			if !fileWritten {
-				b.WriteString(color.YellowString(file.path))
+				b.WriteString(style.File(file.path))
 				b.WriteString("\n")
 				fileWritten = true
 			}
 			prefix := "  "
 			if group.Name != "" {
 				b.WriteString(prefix)
-				b.WriteString(color.CyanString(group.Name))
+				b.WriteString(style.Group(group.Name))
 				b.WriteString("\n")
 				prefix += "  "
 			}
 			for _, answer := range answers {
-				mark := color.GreenString("✓")
+				mark := style.Pass(style.PassMark)
 				if answer.Violates {
-					mark = color.RedString("✗")
+					mark = style.Fail(style.FailMark)
 				}
 				b.WriteString(prefix)
-				fmt.Fprintf(&b, "%s [%s] %s: %s", mark, color.MagentaString(string(answer.Type)), color.BlueString(answer.displayRule()), answer.displayValue())
+				fmt.Fprintf(&b, "%s [%s] %s: %s", mark, style.Type(string(answer.Type)), style.Rule(answer.displayRule()), answer.displayValue())
 				if answer.Label != "" {
 					fmt.Fprintf(&b, " (%s)", answer.Label)
 				}
@@ -252,14 +252,14 @@ func (r Report) text(showPassing bool) string {
 					continue
 				}
 				b.WriteString("  - ")
-				b.WriteString(color.BlueString(answer.displayRule()))
+				b.WriteString(style.Rule(answer.displayRule()))
 				if file.path != "" {
 					b.WriteString(" in ")
-					b.WriteString(color.YellowString(file.path))
+					b.WriteString(style.File(file.path))
 				}
 				if group.Name != "" {
 					b.WriteString(" (")
-					b.WriteString(color.CyanString(group.Name))
+					b.WriteString(style.Group(group.Name))
 					b.WriteString(")")
 				}
 				b.WriteString("\n")
