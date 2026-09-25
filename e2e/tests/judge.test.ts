@@ -123,6 +123,17 @@ describe('the judge', () => {
     expect(result.stdout).toContain('The change violates no rule.')
   })
 
+  it('prints text output when --output text is passed', async () => {
+    const repo = gitRepoWithChange()
+    writeFileSync(join(repo, 'questions.yaml'), questionsFile)
+    const api = await fakeSystemOne(cleanAnswers)
+
+    const result = await runCli(repo, [...judgeArgs(api), '--output', 'text'])
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('The change violates no rule.')
+  })
+
   it('reports a violating change and exits 0 without --exit-code', async () => {
     const repo = gitRepoWithChange()
     writeFileSync(join(repo, 'questions.yaml'), questionsFile)
@@ -152,7 +163,7 @@ describe('the judge', () => {
     writeFileSync(join(repo, 'questions.yaml'), questionsFile)
     const api = await fakeSystemOne(cleanAnswers)
 
-    const result = await runCli(repo, [...judgeArgs(api), '--json'])
+    const result = await runCli(repo, [...judgeArgs(api), '--output', 'json'])
 
     expect(result.status).toBe(0)
     const report = JSON.parse(result.stdout)
@@ -166,7 +177,7 @@ describe('the judge', () => {
     writeFileSync(join(repo, 'questions.yaml'), questionsFile)
     const api = await fakeSystemOne(cleanAnswers)
 
-    const result = await runCli(repo, [...judgeArgs(api), '--json', '--all'])
+    const result = await runCli(repo, [...judgeArgs(api), '-o', 'json', '--all'])
 
     expect(result.status).toBe(0)
     const report = JSON.parse(result.stdout)
@@ -204,6 +215,33 @@ describe('the judge', () => {
         ],
       },
     ])
+  })
+
+  it('rejects an unknown output mode', async () => {
+    const repo = gitRepoWithChange()
+
+    const result = await runCli(repo, ['--output', 'yaml'])
+
+    expect(result.status).toBe(2)
+    expect(result.stdout + result.stderr).toContain('unknown output mode "yaml"')
+  })
+
+  it('rejects the removed --json flag', async () => {
+    const repo = gitRepoWithChange()
+
+    const result = await runCli(repo, ['--json'])
+
+    expect(result.status).toBe(2)
+    expect(result.stdout + result.stderr).toContain('flag provided but not defined: -json')
+  })
+
+  it('rejects TUI output without an interactive terminal', async () => {
+    const repo = gitRepoWithChange()
+
+    const result = await runCli(repo, ['--output', 'tui'])
+
+    expect(result.status).toBe(2)
+    expect(result.stdout + result.stderr).toContain('tui output requires an interactive terminal')
   })
 
   it('does not ask the backend about a file that no rule applies to', async () => {

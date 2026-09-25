@@ -37,7 +37,7 @@ A code review checks a diff against guidelines that live in the reviewer's memor
 | `--base` | Detected | The git ref to compare against |
 | `--questions` | The config, then `questions.yaml` in the working directory | The path of the questions file, or a directory of them |
 | `--config` | `$XDG_CONFIG_HOME/vet/config.yaml` (or `~/.config/vet/config.yaml`) | The path of the config file |
-| `--json` | Off | Print the report as JSON |
+| `--output`, `-o` | `text` | Report mode: `text`, `json`, or `tui` |
 | `--all` | Off | Show passing and failing rules |
 | `--exit-code` | Off | Exit 1 when the change violates a rule |
 | `--api-key` | `TYPESAFE_API_KEY`, then the config `api-key-command` | The API key |
@@ -239,8 +239,9 @@ row, and a row carries the file it judged.
 
 When you pass a directory of questions files, each text group is labeled by the questions file's `name`, or
 its file name. Passing rules are omitted from text and JSON by default; `--all` includes them in both
-outputs. The JSON report retains its questions-file-first `groups` shape. The verdict checks the violation
-rule for the question type:
+outputs. Use `--output`/`-o` to select `text` (the default), `json`, or `tui`. TUI output requires an
+interactive terminal. The JSON report retains its questions-file-first `groups` shape. The verdict checks
+the violation rule for the question type:
 
 - `noul`: the answer is greater than or equal to `noulLimit`.
 - `choice`: the answer equals `violatesWhen`.
@@ -302,9 +303,9 @@ Unit tests live next to the code and carry the `//go:build unit` tag. They cover
 - The Jev client against a fake server, including the 429 and 529 retries.
 - The base detection against a fake git repository.
 
-End-to-end tests live in `e2e/`. They run the real binary in a scratch git repository, and answer it with a fake System One server. They cover the full flow: a change that passes, a change that violates, JSON output, and the exit codes.
+End-to-end tests live in `e2e/`. They run the real binary in a scratch git repository, and answer it with a fake System One server. They cover the full flow: a change that passes, a change that violates, text and JSON output, invalid output modes, and the exit codes.
 
-The scaffold's TUI helpers are removed. `vet` is not interactive, so the tests use `runCli` only, and `e2e/package.json` drops `node-pty` and `tuistory`. The Docker image no longer needs `python3`, `make`, and `g++`.
+The TUI has stream-injected Go unit tests, so the end-to-end suite does not need a pseudo-terminal. The e2e tests use `runCli` only, and `e2e/package.json` keeps the removed `node-pty` and `tuistory` helpers out. The Docker image no longer needs `python3`, `make`, and `g++`.
 
 ## Future Backends
 

@@ -38,10 +38,10 @@ Update the public CLI examples and proposal to describe `--output text|json|tui`
 
 Acceptance criteria:
 
-- No user-facing documentation recommends `--json`.
-- README and proposal document the output selector and its default.
-- E2E JSON tests use `--output json` and retain the current `groups` assertions.
-- E2E tests verify the default text form and invalid output handling.
-- TypeScript tests remain type-safe without changing unrelated dependencies.
+- [x] No user-facing documentation recommends `--json`.
+- [x] README and proposal document the output selector and its default.
+- [x] E2E JSON tests use `--output json` and retain the current `groups` assertions.
+- [x] E2E tests verify the default text form and invalid output handling.
+- [x] TypeScript tests remain type-safe without changing unrelated dependencies.
 
 Patterns: `README.md:30-50`, `docs/proposal.md:33-45`, `e2e/tests/judge.test.ts:100-207`, `e2e/package.json`.

@@ -45,7 +45,8 @@ update command do the same kind of job; use whichever you find convenient on a f
 vet                                # judge the diff from the base to HEAD against questions.yaml
 vet --base origin/main             # compare against a specific base
 vet --questions my-rules.yaml      # use a different questions file, or a directory of them
-vet --json                         # print the report as JSON
+vet --output json                  # print the report as JSON
+vet -o tui                          # open the interactive report
 vet --all                          # show passing and failing rules
 vet --exit-code                    # exit 1 when the change violates a rule
 vet questions example                # print an example questions file
@@ -55,15 +56,12 @@ vet config init                      # write the default config file where vet l
 ```
 
 `vet` runs the diff of a change against a file of written rules, answered by the System One model
-`jev-latest`, and prints the failing rules by default. Pass `--all` to show passing and failing rules.
-It is useful for policy that needs the meaning of a change: whether a test proves observable behavior,
-whether a rejected operation proves state stayed unchanged, whether a public contract is preserved, or
-whether a comment explains a decision. A compiler and a conventional linter can check syntax and local patterns, but they
-cannot reliably answer those repository-specific questions from a diff. Put the rules in the repository and every
-change gets the same check. When `--questions` names a directory, the text report groups results by changed
-file first, then by the questions file's `name`, or by the file name. JSON keeps its questions-file groups.
-It exits 0 when the change violates no rule, 1 when a rule violates and `--exit-code` is on, and 2 when
-it cannot finish: no questions file, no API key, or a backend error.
+`jev-latest`, and prints the failing rules by default. Use `--output`/`-o` to select `text` (the default),
+`json`, or `tui`; TUI output requires an interactive terminal. Pass `--all` to show passing and failing
+rules in any output mode. When `--questions` names a directory, the text report groups results by changed
+file first, then by the questions file's `name`, or by the file name. JSON keeps its questions-file
+groups. It exits 0 when the change violates no rule, 1 when a rule violates and `--exit-code` is on, and 2
+when it cannot finish: no questions file, no API key, or a backend error.
 
 ## API key
 

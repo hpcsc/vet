@@ -20,7 +20,9 @@ commit, so the CLI has a real diff to judge.
 
 `runCli(cwd, args, env)` starts the CLI as a child process with pipes. It gives
 stdout, stderr and the exit status. The tests cover commands that print and stop,
-such as `version`, `update` and `judge`, so no pseudo-terminal is needed.
+such as `version`, `update` and `judge`, so no pseudo-terminal is needed. The
+interactive report is covered by stream-injected Go unit tests; the e2e suite
+checks that TUI mode reports a clear error when no terminal is attached.
 
 `runCli` does not block. The judge and update tests run a fake server in the test
 process, and that server must answer while the CLI waits for it.
@@ -29,8 +31,8 @@ process, and that server must answer while the CLI waits for it.
 
 The judge tests start a fake System One server in the test process and point the
 CLI at it with `--api-url`. The server answers every question the CLI asks. The
-tests cover the full flow: a change that passes, a change that violates, the JSON
-output, and the exit codes 0, 1 and 2.
+tests cover the full flow: a change that passes, a change that violates, text and
+JSON output, invalid output modes, and the exit codes 0, 1 and 2.
 
 ```mermaid
 sequenceDiagram

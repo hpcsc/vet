@@ -52,7 +52,7 @@
     },
     {
       "n": 3,
-      "done": false,
+      "done": true,
       "title": "E2E and documentation updates for output modes",
       "language": "TypeScript and Markdown",
       "testable": true,
@@ -71,7 +71,8 @@
       "affected_files": [
         "e2e/tests/judge.test.ts",
         "README.md",
-        "docs/proposal.md"
+        "docs/proposal.md",
+        "docs/e2e-tests.md"
       ]
     }
   ]
