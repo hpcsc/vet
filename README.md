@@ -56,10 +56,14 @@ vet config init                      # write the default config file where vet l
 
 `vet` runs the diff of a change against a file of written rules, answered by the System One model
 `jev-latest`, and prints the failing rules by default. Pass `--all` to show passing and failing rules.
-When `--questions` names a directory, the text report groups results by changed file first, then by the
-questions file's `name`, or by the file name. JSON keeps its questions-file groups. It exits 0 when the
-change violates no rule, 1 when a rule violates and `--exit-code` is on, and 2 when it cannot finish:
-no questions file, no API key, or a backend error.
+It is useful for policy that needs the meaning of a change: whether a test proves observable behavior,
+whether a rejected operation proves state stayed unchanged, whether a public contract is preserved, or
+whether a comment explains a decision. A compiler and a conventional linter can check syntax and local patterns, but they
+cannot reliably answer those repository-specific questions from a diff. Put the rules in the repository and every
+change gets the same check. When `--questions` names a directory, the text report groups results by changed
+file first, then by the questions file's `name`, or by the file name. JSON keeps its questions-file groups.
+It exits 0 when the change violates no rule, 1 when a rule violates and `--exit-code` is on, and 2 when
+it cannot finish: no questions file, no API key, or a backend error.
 
 ## API key
 
@@ -96,18 +100,85 @@ An optional `description` labels the rule in the report, and the `id` stands in 
 | `choice` | `choices`, `violatesWhen` | One of the `choices` keys | The answer equals `violatesWhen` |
 | `score` | `scores`, `scoreLimit` | A level index | The answer is greater than or equal to `scoreLimit` |
 
+`vet questions example` prints a complete, runnable starting point. The example asks policy questions,
+not syntax questions: whether tests observe public behavior, whether a rejected operation proves state
+stayed unchanged, whether a dependency needs a mock, and whether a change breaks an existing contract.
+The rules below are an excerpt; edit them to match your repository:
+
 ```yaml
 version: 1
+name: Go service policy
 context: |
-  The change is in a Go codebase. General guidelines:
-  - Log with slog, never to stdout.
+  This repository treats public behavior and stored data as contracts.
+  Tests should prove what callers observe, not how the code is arranged internally.
 rules:
-  - id: no-flag-field
-    description: The change adds a flag or knob that toggles behaviour.
-    instructions: The change adds a flag field to the request struct.
+  - id: tests-through-public-api
+    description: The change's tests assert on implementation details.
+    instructions: |
+      The change's tests assert private fields, internal call counts, call
+      order, or intermediate state instead of the result a caller observes.
     type: noul
     noulLimit: 0.5
+    files:
+      - "**/*_test.go"
+
+  - id: rejected-operation-inert
+    description: A rejected operation's test does not check the state stayed unchanged.
+    instructions: |
+      A test of a rejected operation checks the error but not that the
+      observable state stayed unchanged where the public interface can show it.
+    type: noul
+    noulLimit: 0.5
+    files:
+      - "**/*_test.go"
+
+  - id: test-double
+    description: Which test double the change uses for a dependency.
+    instructions: Which test double does the change use for a dependency?
+    type: choice
+    choices:
+      real: The real implementation or an in-memory double for the happy path.
+      broken: A broken double that always fails, for error paths.
+      recording: A recording double that captures call details.
+      mock: A mock that verifies call sequences, the last resort.
+    violatesWhen: mock
+    files:
+      - "**/*_test.go"
+
+  - id: public-contract-change
+    description: The change preserves its public contract.
+    instructions: |
+      Which option best describes the compatibility of this change for
+      existing callers, stored data, and integrations?
+    type: choice
+    choices:
+      compatible: No existing caller or stored record needs to change.
+      additive: The change adds behavior without changing existing behavior.
+      breaking: The change removes or changes behavior that existing callers or stored data rely on.
+    violatesWhen: breaking
+    files:
+      - "**/*.go"
+    exclude:
+      - "**/*_test.go"
+
+  - id: testing-quality
+    description: How well the change's tests follow the testing policy.
+    instructions: |
+      Rate how well the change's tests prove observable success and failure
+      behavior and remain independent of production implementation details.
+    type: score
+    scores:
+      - Tests prove observable behavior and cover the relevant success and failure paths.
+      - The tests follow the policy with one minor gap.
+      - A test locks in implementation details or cannot fail on a real defect.
+    scoreLimit: 2
+    files:
+      - "**/*_test.go"
 ```
+
+These are decisions that a compiler cannot make: a test can compile and still assert the wrong thing, and
+an apparently additive change can still break a stored contract. `vet` applies the written policy to the
+actual diff, so a team can make its expectations explicit and get a consistent check on every change.
 
 ### Scoping rules to files
 
@@ -122,29 +193,29 @@ every rule. Each rule without its own `files` inherits the file's, a rule with i
 
 ```yaml
 version: 1
-name: Go naming
+name: Go change policy
 files:
   - "**/*.go"
 rules:
-  - id: go-naming
-    description: The change names the identifiers well.
-    instructions: Rate how well the change names the identifiers.
-    type: score
-    scores: [well, poorly]
-    scoreLimit: 1
-    exclude:
-      - "**/*_test.go"
-  - id: test-file-name
-    description: A test file is named for the file it tests.
-    instructions: A test support file is named for its role.
+  - id: comment-adds-guidance
+    description: A comment repeats the code instead of explaining a constraint.
+    instructions: |
+      The change adds a comment that repeats what the code says or explains no
+      constraint a reader needs.
     type: noul
     noulLimit: 0.5
+  - id: testing-quality
+    description: How well the change's tests follow the testing policy.
+    instructions: Rate how well the change's tests prove observable behavior.
+    type: score
+    scores: [proves behavior, follows with a gap, cannot fail on a defect]
+    scoreLimit: 2
     files:
       - "**/*_test.go"
 ```
 
 A changed file that no rule applies to is skipped: `vet` does not ask the model about it,
-so a README-only change answers none of the Go naming rules.
+so a README-only change answers none of the Go rules.
 
 ### Referencing other files
 
@@ -154,12 +225,12 @@ questions file, a leading `~` expands to the home directory, and a missing file 
 
 ```yaml
 version: 1
-context: "@~/.config/ai/guidelines/go/logging.md"
+context: "@guidelines/testing.md"
 rules:
-  - id: log-guideline
-    instructions: "@~/.config/ai/guidelines/go/logging.md"
+  - id: testing-quality
+    instructions: "@guidelines/testing.md"
     type: score
-    scores: [follows, adds noise, prohibited]
+    scores: [proves behavior, follows with a gap, cannot fail on a defect]
     scoreLimit: 2
 ```
 

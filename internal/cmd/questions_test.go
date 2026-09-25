@@ -14,7 +14,7 @@ import (
 )
 
 func TestQuestionsExampleCommand(t *testing.T) {
-	t.Run("prints a valid example questions file with all three rule types", func(t *testing.T) {
+	t.Run("prints the practical default questions file", func(t *testing.T) {
 		var out bytes.Buffer
 		command := newQuestionsExampleCommand()
 		command.Writer = &out
@@ -24,10 +24,10 @@ func TestQuestionsExampleCommand(t *testing.T) {
 		require.NoError(t, err)
 		file, err := questions.Parse(out.Bytes(), "")
 		require.NoError(t, err)
-		require.Len(t, file.Rules, 3)
-		require.Equal(t, questions.Noul, file.Rules[0].Type)
-		require.Equal(t, questions.Choice, file.Rules[1].Type)
-		require.Equal(t, questions.Score, file.Rules[2].Type)
+		expected, err := questions.Default()
+		require.NoError(t, err)
+		require.Equal(t, expected, file)
+		require.Len(t, file.Rules, 6)
 	})
 }
 
@@ -46,7 +46,7 @@ func TestQuestionsInitCommand(t *testing.T) {
 		require.NoError(t, err)
 		file, err := questions.Parse(data, "")
 		require.NoError(t, err)
-		require.Len(t, file.Rules, 3)
+		require.Len(t, file.Rules, 6)
 	})
 
 	t.Run("refuses to overwrite an existing file without --force", func(t *testing.T) {
@@ -80,7 +80,7 @@ func TestQuestionsInitCommand(t *testing.T) {
 		require.NoError(t, err)
 		file, err := questions.Parse(data, "")
 		require.NoError(t, err)
-		require.Len(t, file.Rules, 3)
+		require.Len(t, file.Rules, 6)
 	})
 
 	t.Run("expands a ~ in the path flag to the home directory", func(t *testing.T) {

@@ -22,13 +22,17 @@ func newQuestionsCommand() *cli.Command {
 func newQuestionsExampleCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "example",
-		Usage: "print an example questions file, one rule of each type",
+		Usage: "print a practical example questions file",
 		Action: func(_ context.Context, cmd *cli.Command) error {
-			file, err := questions.Marshal(exampleQuestionsFile())
+			file, err := questions.Default()
 			if err != nil {
 				return err
 			}
-			_, err = fmt.Fprint(cmd.Root().Writer, string(file))
+			text, err := questions.Marshal(file)
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprint(cmd.Root().Writer, string(text))
 			return err
 		},
 	}
@@ -94,42 +98,3 @@ func writeDefaultQuestions(cmd *cli.Command, path string) error {
 	_, err = fmt.Fprintf(cmd.Root().Writer, "Wrote the default questions file to %s.\n", path)
 	return err
 }
-
-func exampleQuestionsFile() questions.File {
-	return questions.File{
-		Version: 1,
-		Name:    "example",
-		Context: "These guidelines apply to every rule below.\n- The codebase logs with slog, never to stdout.",
-		Rules: []questions.Rule{
-			{
-				ID:           "no-flag-field",
-				Description:  "The change adds a flag field to the request struct.",
-				Instructions: "The change adds a flag field to the request struct.",
-				Type:         questions.Noul,
-				NoulLimit:    pointerTo(0.5),
-			},
-			{
-				ID:           "database-migration",
-				Description:  "How the change touches the database.",
-				Instructions: "Which option describes the change best?",
-				Type:         questions.Choice,
-				Choices: map[string]string{
-					"no-db":    "The change does not touch the database.",
-					"uses-db":  "The change reads or writes the database.",
-					"migrates": "The change alters the schema.",
-				},
-				ViolatesWhen: "migrates",
-			},
-			{
-				ID:           "log-guideline",
-				Description:  "How well the change follows the logging guideline.",
-				Instructions: "Rate how the change follows the logging guideline.",
-				Type:         questions.Score,
-				Scores:       []string{"first", "second", "third"},
-				ScoreLimit:   pointerTo(2),
-			},
-		},
-	}
-}
-
-func pointerTo[T any](v T) *T { return &v }
