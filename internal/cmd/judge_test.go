@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"github.com/hpcsc/vet/internal/backend"
 	"github.com/hpcsc/vet/internal/git"
 	"github.com/hpcsc/vet/internal/gittest"
+	"github.com/hpcsc/vet/internal/verdict"
 	"github.com/stretchr/testify/require"
 )
 
@@ -165,10 +167,10 @@ rules:
 		})
 	})
 
-	t.Run("json", func(t *testing.T) {
+	t.Run("output json", func(t *testing.T) {
 		t.Run("prints the report as JSON with the base and the violations", func(t *testing.T) {
 			j, _ := setup(t, violatingAnswers)
-			j.json = true
+			j.output = outputModeJSON
 
 			err := j.run(ctx)
 
@@ -181,7 +183,7 @@ rules:
 
 		t.Run("hides passing answers from JSON by default", func(t *testing.T) {
 			j, _ := setup(t, cleanAnswers)
-			j.json = true
+			j.output = outputModeJSON
 
 			err := j.run(ctx)
 
@@ -195,7 +197,7 @@ rules:
 
 		t.Run("includes passing answers in JSON with all", func(t *testing.T) {
 			j, _ := setup(t, cleanAnswers)
-			j.json = true
+			j.output = outputModeJSON
 			j.all = true
 
 			err := j.run(ctx)
@@ -214,11 +216,34 @@ rules:
 		})
 	})
 
+	t.Run("output tui", func(t *testing.T) {
+		t.Run("renders the judged report", func(t *testing.T) {
+			j, _ := setup(t, violatingAnswers)
+			j.output = outputModeTUI
+			j.all = true
+			rendered := false
+			j.tui = func(out io.Writer, report verdict.Report, all bool) error {
+				rendered = true
+				require.True(t, all)
+				require.Equal(t, "origin/main", report.Base)
+				require.Equal(t, 3, report.Violations)
+				_, err := out.Write([]byte("interactive report"))
+				return err
+			}
+
+			err := j.run(ctx)
+
+			require.NoError(t, err)
+			require.True(t, rendered)
+			require.Contains(t, j.out.(*bytes.Buffer).String(), "interactive report")
+		})
+	})
+
 	t.Run("base detection", func(t *testing.T) {
 		t.Run("detects the base when none is given", func(t *testing.T) {
 			j, _ := setup(t, cleanAnswers)
 			j.base = ""
-			j.json = true
+			j.output = outputModeJSON
 
 			err := j.run(ctx)
 
@@ -342,5 +367,47 @@ rules:
 			require.Len(t, files, 1)
 			require.Equal(t, "internal/repo.go", files[0].Path)
 		})
+	})
+}
+
+func TestOutputMode(t *testing.T) {
+	modes := []struct {
+		name  string
+		value string
+		want  outputMode
+	}{
+		{name: "accepts the text mode", value: "text", want: outputMode("text")},
+		{name: "accepts the json mode", value: "json", want: outputMode("json")},
+		{name: "accepts the tui mode", value: "tui", want: outputMode("tui")},
+	}
+	for _, mode := range modes {
+		t.Run(mode.name, func(t *testing.T) {
+			parsed, err := outputModeOf(mode.value)
+
+			require.NoError(t, err)
+			require.Equal(t, mode.want, parsed)
+		})
+	}
+
+	t.Run("rejects an unknown mode", func(t *testing.T) {
+		_, err := outputModeOf("yaml")
+
+		require.EqualError(t, err, `unknown output mode "yaml": want text, json, or tui`)
+	})
+
+	t.Run("documents the public output contract", func(t *testing.T) {
+		docs := []string{
+			filepath.Join("..", "..", "README.md"),
+			filepath.Join("..", "..", "docs", "proposal.md"),
+		}
+		for _, path := range docs {
+			raw, err := os.ReadFile(path)
+			require.NoError(t, err)
+			text := string(raw)
+			for _, token := range []string{"`--output`", "`-o`", "`text` (the default)", "`json`", "`tui`"} {
+				require.Contains(t, text, token, path)
+			}
+			require.NotContains(t, text, "--json", path)
+		}
 	})
 }

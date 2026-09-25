@@ -27,7 +27,7 @@ type judge struct {
 	backend   backend.Judge
 	questions string
 	base      string
-	json      bool
+	output    outputMode
 	all       bool
 	exit      bool
 }
@@ -102,14 +102,27 @@ func (j *judge) askAll(ctx context.Context, file questions.File, files []diff.Fi
 }
 
 func (j *judge) render(report verdict.Report) error {
-	if !j.all {
-		report = report.ViolationsOnly()
+	mode := j.output
+	if mode == "" {
+		mode = outputModeText
 	}
-	if j.json {
+	switch mode {
+	case outputModeText:
+		if !j.all {
+			report = report.ViolationsOnly()
+		}
+		_, err := fmt.Fprintln(j.out, report.TextWithPassing())
+		return err
+	case outputModeJSON:
+		if !j.all {
+			report = report.ViolationsOnly()
+		}
 		enc := json.NewEncoder(j.out)
 		enc.SetIndent("", "  ")
 		return enc.Encode(report)
+	case outputModeTUI:
+		return fmt.Errorf("TUI output requires an interactive terminal")
+	default:
+		return fmt.Errorf("unknown output mode %q: want text, json, or tui", mode)
 	}
-	_, err := fmt.Fprintln(j.out, report.TextWithPassing())
-	return err
 }

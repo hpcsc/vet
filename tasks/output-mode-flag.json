@@ -1,0 +1,76 @@
+{
+  "story": "Replace --json with --output/-o text, json, and tui modes",
+  "tasks_file": "tasks/output-mode-flag.md",
+  "tasks": [
+    {
+      "n": 1,
+      "done": true,
+      "title": "CLI output mode selection: flag wiring, validation, and text/JSON dispatch",
+      "language": "Go",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "medium",
+      "patterns_to_follow": [
+        "internal/cmd/root.go:36-96",
+        "internal/cmd/judge.go:24-115",
+        "internal/cmd/judge_test.go:168-229",
+        "internal/verdict/report.go:122-269"
+      ],
+      "depends_on": [],
+      "affected_files": [
+        "internal/cmd/root.go",
+        "internal/cmd/judge.go",
+        "internal/cmd/judge_test.go",
+        "internal/cmd/output.go"
+      ]
+    },
+    {
+      "n": 2,
+      "done": false,
+      "title": "Interactive report renderer for TUI output",
+      "language": "Go",
+      "testable": true,
+      "certainty": "medium",
+      "blast_radius": "high",
+      "patterns_to_follow": [
+        "internal/verdict/report.go:13-36",
+        "internal/verdict/report.go:122-269",
+        "internal/cmd/judge.go:104-115",
+        "go.mod"
+      ],
+      "depends_on": [
+        1
+      ],
+      "affected_files": [
+        "internal/cmd/tui.go",
+        "internal/cmd/tui_test.go",
+        "go.mod",
+        "go.sum"
+      ]
+    },
+    {
+      "n": 3,
+      "done": false,
+      "title": "E2E and documentation updates for output modes",
+      "language": "TypeScript and Markdown",
+      "testable": true,
+      "certainty": "high",
+      "blast_radius": "medium",
+      "patterns_to_follow": [
+        "README.md:30-50",
+        "docs/proposal.md:33-45",
+        "e2e/tests/judge.test.ts:100-207",
+        "e2e/package.json"
+      ],
+      "depends_on": [
+        1,
+        2
+      ],
+      "affected_files": [
+        "e2e/tests/judge.test.ts",
+        "README.md",
+        "docs/proposal.md"
+      ]
+    }
+  ]
+}

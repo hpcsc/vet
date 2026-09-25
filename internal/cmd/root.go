@@ -41,7 +41,13 @@ func newCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "base", Usage: "the git ref to compare against, instead of the detected base"},
 			&cli.StringFlag{Name: "questions", Value: "", Usage: "the path of the questions file or directory (default questions.yaml in the working directory)"},
-			&cli.BoolFlag{Name: "json", Usage: "print the report as JSON"},
+			&cli.StringFlag{
+				Name:      "output",
+				Aliases:   []string{"o"},
+				Value:     string(outputModeText),
+				Usage:     "output mode: text, json, or tui",
+				Validator: func(value string) error { _, err := outputModeOf(value); return err },
+			},
 			&cli.BoolFlag{Name: "all", Usage: "show passing and failing rules"},
 			&cli.BoolFlag{Name: "exit-code", Usage: "exit 1 when the change violates a rule"},
 			&cli.StringFlag{Name: "api-url", Value: "", Usage: "the System One endpoint (default https://api.typesafe.ai/v1/systemone, or TYPESAFE_API_URL)"},
@@ -61,6 +67,10 @@ func newCommand() *cli.Command {
 
 func judgeAction(ctx context.Context, cmd *cli.Command) error {
 	repoDir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	output, err := outputModeOf(cmd.String("output"))
 	if err != nil {
 		return err
 	}
@@ -89,7 +99,7 @@ func judgeAction(ctx context.Context, cmd *cli.Command) error {
 		backend:   jev.NewClient(&http.Client{Timeout: 2 * time.Minute}, apiURL, model, apiKey),
 		questions: questions,
 		base:      cmd.String("base"),
-		json:      cmd.Bool("json"),
+		output:    output,
 		all:       cmd.Bool("all"),
 		exit:      cmd.Bool("exit-code"),
 	}
