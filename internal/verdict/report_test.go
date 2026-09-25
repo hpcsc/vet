@@ -4,6 +4,7 @@ package verdict
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/hpcsc/vet/internal/backend"
@@ -198,6 +199,20 @@ rules:
 			require.Equal(t, []string{"the db", "the flags"}, []string{report.Groups[0].Name, report.Groups[1].Name})
 		})
 
+		t.Run("keeps only violating rows in a violations-only view", func(t *testing.T) {
+			report, err := Judge("origin/main", file, []backend.Answer{
+				{Path: "a.go", Rule: "no-flag-field", Noul: noul(0.1)},
+				{Path: "b.go", Rule: "database-migration", Choice: choice("migrates")},
+			})
+			require.NoError(t, err)
+
+			filtered := report.ViolationsOnly()
+
+			require.Len(t, filtered.Groups, 1)
+			require.Equal(t, "database-migration", filtered.Groups[0].Answers[0].Rule)
+			require.Equal(t, 1, filtered.Violations)
+		})
+
 		t.Run("counts every violation across the groups", func(t *testing.T) {
 			report, err := Judge("origin/main", file, []backend.Answer{
 				{Path: "a.go", Rule: "no-flag-field", Noul: noul(0.9)},
@@ -226,12 +241,11 @@ rules:
 				{Path: "b.go", Rule: "log-guideline", Score: score(2)},
 			})
 			require.NoError(t, err)
-			text := report.Text()
+			text := report.TextWithPassing()
 
-			require.Contains(t, text, "a.go")
-			require.Contains(t, text, "  ✓ [noul] the change adds a flag field: 20%")
+			require.Contains(t, text, "a.go\n  ✓ [noul] the change adds a flag field: 20%")
 			require.Contains(t, text, "  ✗ [choice] how the change touches the database: migrates (alters the schema) (confidence 0.9)")
-			require.Contains(t, text, "b.go")
+			require.Contains(t, text, "\nb.go\n")
 			require.Contains(t, text, "  ✗ [score] how well the change follows the logging guideline: 2 (prohibited logging)")
 			require.Contains(t, text, "The change violates 2 rules.")
 		})
@@ -278,7 +292,7 @@ rules:
 			require.Contains(t, text, "  - how well the change follows the logging guideline in b.go")
 		})
 
-		t.Run("groups the rows under the questions file name", func(t *testing.T) {
+		t.Run("groups the rows under the changed file and questions file name", func(t *testing.T) {
 			report, err := Judge("origin/main", groupedFile, []backend.Answer{
 				{Path: "a.go", Rule: "no-flag-field", Noul: noul(0.9)},
 				{Path: "b.go", Rule: "database-migration", Choice: choice("migrates")},
@@ -286,10 +300,34 @@ rules:
 			require.NoError(t, err)
 			text := report.Text()
 
-			require.Contains(t, text, "the flags\n  a.go\n    ✗ [noul] no-flag-field: 90%")
-			require.Contains(t, text, "the db\n  b.go\n    ✗ [choice] database-migration: migrates")
+			require.Contains(t, text, "a.go\n  the flags\n    ✗ [noul] no-flag-field: 90%")
+			require.Contains(t, text, "b.go\n  the db\n    ✗ [choice] database-migration: migrates")
 			require.Contains(t, text, "  - database-migration in b.go (the db)")
 			require.Contains(t, text, "  - no-flag-field in a.go (the flags)")
+		})
+
+		t.Run("keeps changed-file order when question groups arrive out of order", func(t *testing.T) {
+			report, err := Judge("origin/main", groupedFile, []backend.Answer{
+				{Path: "a.go", Rule: "database-migration", Choice: choice("migrates")},
+				{Path: "c.go", Rule: "no-flag-field", Noul: noul(0.9)},
+				{Path: "b.go", Rule: "database-migration", Choice: choice("migrates")},
+			})
+			require.NoError(t, err)
+			text := report.TextWithPassing()
+
+			firstFile := strings.Index(text, "a.go\n")
+			secondFile := strings.Index(text, "c.go\n")
+			thirdFile := strings.Index(text, "b.go\n")
+			require.NotEqual(t, -1, firstFile)
+			require.NotEqual(t, -1, secondFile)
+			require.NotEqual(t, -1, thirdFile)
+			require.Less(t, firstFile, secondFile)
+			require.Less(t, secondFile, thirdFile)
+			firstSummary := strings.Index(text, "- database-migration in a.go")
+			secondSummary := strings.Index(text, "- no-flag-field in c.go")
+			thirdSummary := strings.Index(text, "- database-migration in b.go")
+			require.Less(t, firstSummary, secondSummary)
+			require.Less(t, secondSummary, thirdSummary)
 		})
 
 		t.Run("renders the rule id when a rule has no description", func(t *testing.T) {
@@ -299,19 +337,22 @@ rules:
 			require.NoError(t, err)
 			text := report.Text()
 
-			require.Contains(t, text, "  ✗ [noul] no-flag-field: 90%")
+			require.Contains(t, text, "    ✗ [noul] no-flag-field: 90%")
 			require.Contains(t, text, "  - no-flag-field in a.go (the flags)")
 		})
 
-		t.Run("says so when the change violates no rule", func(t *testing.T) {
+		t.Run("hides passing rules unless they are requested", func(t *testing.T) {
 			report, err := Judge("origin/main", file, []backend.Answer{
 				{Path: "a.go", Rule: "no-flag-field", Noul: noul(0.1)},
 			})
 			require.NoError(t, err)
+
 			text := report.Text()
 
-			require.Contains(t, text, "  ✓ [noul] the change adds a flag field: 10%")
+			require.NotContains(t, text, "a.go")
+			require.NotContains(t, text, "✓ [noul] the change adds a flag field: 10%")
 			require.Contains(t, text, "The change violates no rule.")
+			require.Contains(t, report.TextWithPassing(), "  ✓ [noul] the change adds a flag field: 10%")
 		})
 	})
 }

@@ -32,6 +32,7 @@ type Report struct {
 	Base       string  `json:"base"`
 	Groups     []Group `json:"groups"`
 	Violations int     `json:"violations"`
+	fileOrder  []string
 }
 
 func Judge(base string, file questions.File, answers []backend.Answer) (Report, error) {
@@ -40,8 +41,9 @@ func Judge(base string, file questions.File, answers []backend.Answer) (Report, 
 		rules[rule.ID] = rule
 	}
 
-	report := Report{Base: base}
+	report := Report{Base: base, Groups: make([]Group, 0), fileOrder: make([]string, 0)}
 	groupIndex := map[string]int{}
+	fileIndexes := map[string]struct{}{}
 	for _, answer := range answers {
 		rule, ok := rules[answer.Rule]
 		if !ok {
@@ -57,6 +59,10 @@ func Judge(base string, file questions.File, answers []backend.Answer) (Report, 
 			index = len(report.Groups)
 			groupIndex[rule.Source] = index
 			report.Groups = append(report.Groups, Group{Name: rule.Source})
+		}
+		if _, ok := fileIndexes[answer.Path]; !ok {
+			fileIndexes[answer.Path] = struct{}{}
+			report.fileOrder = append(report.fileOrder, answer.Path)
 		}
 		report.Groups[index].Answers = append(report.Groups[index].Answers, row)
 		if row.Violates {
@@ -113,41 +119,122 @@ func (a Row) displayValue() string {
 	return fmt.Sprint(a.Value)
 }
 
-func (r Report) Text() string {
-	var b strings.Builder
-	for _, g := range r.Groups {
-		prefix := ""
-		if g.Name != "" {
-			b.WriteString(color.CyanString(g.Name))
-			b.WriteString("\n")
-			prefix = "  "
+func (r Report) ViolationsOnly() Report {
+	filtered := Report{
+		Base:       r.Base,
+		Groups:     make([]Group, 0),
+		Violations: r.Violations,
+		fileOrder:  append([]string(nil), r.fileOrder...),
+	}
+	for _, group := range r.Groups {
+		answers := make([]Row, 0, len(group.Answers))
+		for _, answer := range group.Answers {
+			if answer.Violates {
+				answers = append(answers, answer)
+			}
 		}
-		lastPath := ""
-		for _, a := range g.Answers {
-			if a.Path != lastPath {
-				if lastPath != "" {
-					b.WriteString("\n")
+		if len(answers) > 0 {
+			filtered.Groups = append(filtered.Groups, Group{Name: group.Name, Answers: answers})
+		}
+	}
+	return filtered
+}
+
+type fileGroup struct {
+	path         string
+	groups       []Group
+	groupIndexes map[string]int
+}
+
+func (r Report) Text() string {
+	return r.text(false)
+}
+
+func (r Report) TextWithPassing() string {
+	return r.text(true)
+}
+
+func (r Report) text(showPassing bool) string {
+	files := make([]fileGroup, 0)
+	fileIndexes := map[string]int{}
+	for _, group := range r.Groups {
+		for _, answer := range group.Answers {
+			file, ok := fileIndexes[answer.Path]
+			if !ok {
+				file = len(files)
+				fileIndexes[answer.Path] = file
+				files = append(files, fileGroup{path: answer.Path, groupIndexes: map[string]int{}})
+			}
+			groupIndex, ok := files[file].groupIndexes[group.Name]
+			if !ok {
+				groupIndex = len(files[file].groups)
+				files[file].groupIndexes[group.Name] = groupIndex
+				files[file].groups = append(files[file].groups, Group{Name: group.Name})
+			}
+			files[file].groups[groupIndex].Answers = append(files[file].groups[groupIndex].Answers, answer)
+		}
+	}
+	if len(r.fileOrder) > 0 {
+		ordered := make([]fileGroup, 0, len(files))
+		filesByPath := make(map[string]fileGroup, len(files))
+		for _, file := range files {
+			filesByPath[file.path] = file
+		}
+		for _, path := range r.fileOrder {
+			if file, ok := filesByPath[path]; ok {
+				ordered = append(ordered, file)
+			}
+		}
+		files = ordered
+	}
+
+	var b strings.Builder
+	for _, file := range files {
+		fileWritten := false
+		for _, group := range file.groups {
+			answers := group.Answers
+			if !showPassing {
+				answers = make([]Row, 0, len(group.Answers))
+				for _, answer := range group.Answers {
+					if answer.Violates {
+						answers = append(answers, answer)
+					}
+				}
+			}
+			if len(answers) == 0 {
+				continue
+			}
+			if !fileWritten {
+				b.WriteString(color.YellowString(file.path))
+				b.WriteString("\n")
+				fileWritten = true
+			}
+			prefix := "  "
+			if group.Name != "" {
+				b.WriteString(prefix)
+				b.WriteString(color.CyanString(group.Name))
+				b.WriteString("\n")
+				prefix += "  "
+			}
+			for _, answer := range answers {
+				mark := color.GreenString("✓")
+				if answer.Violates {
+					mark = color.RedString("✗")
 				}
 				b.WriteString(prefix)
-				b.WriteString(color.YellowString(a.Path))
+				fmt.Fprintf(&b, "%s [%s] %s: %s", mark, color.MagentaString(string(answer.Type)), color.BlueString(answer.displayRule()), answer.displayValue())
+				if answer.Label != "" {
+					fmt.Fprintf(&b, " (%s)", answer.Label)
+				}
+				if answer.Confidence != nil {
+					fmt.Fprintf(&b, " (confidence %v)", *answer.Confidence)
+				}
 				b.WriteString("\n")
-				lastPath = a.Path
 			}
-			mark := color.GreenString("✓")
-			if a.Violates {
-				mark = color.RedString("✗")
-			}
-			b.WriteString(prefix)
-			fmt.Fprintf(&b, "  %s [%s] %s: %s", mark, color.MagentaString(string(a.Type)), color.BlueString(a.displayRule()), a.displayValue())
-			if a.Label != "" {
-				fmt.Fprintf(&b, " (%s)", a.Label)
-			}
-			if a.Confidence != nil {
-				fmt.Fprintf(&b, " (confidence %v)", *a.Confidence)
-			}
+		}
+		if fileWritten {
 			b.WriteString("\n")
 		}
-		b.WriteString("\n")
 	}
 	if r.Violations == 0 {
 		b.WriteString("The change violates no rule.")
@@ -158,23 +245,25 @@ func (r Report) Text() string {
 	} else {
 		fmt.Fprintf(&b, "The change violates %d rules.\n", r.Violations)
 	}
-	for _, g := range r.Groups {
-		for _, a := range g.Answers {
-			if !a.Violates {
-				continue
+	for _, file := range files {
+		for _, group := range file.groups {
+			for _, answer := range group.Answers {
+				if !answer.Violates {
+					continue
+				}
+				b.WriteString("  - ")
+				b.WriteString(color.BlueString(answer.displayRule()))
+				if file.path != "" {
+					b.WriteString(" in ")
+					b.WriteString(color.YellowString(file.path))
+				}
+				if group.Name != "" {
+					b.WriteString(" (")
+					b.WriteString(color.CyanString(group.Name))
+					b.WriteString(")")
+				}
+				b.WriteString("\n")
 			}
-			b.WriteString("  - ")
-			b.WriteString(color.BlueString(a.displayRule()))
-			if a.Path != "" {
-				b.WriteString(" in ")
-				b.WriteString(color.YellowString(a.Path))
-			}
-			if g.Name != "" {
-				b.WriteString(" (")
-				b.WriteString(color.CyanString(g.Name))
-				b.WriteString(")")
-			}
-			b.WriteString("\n")
 		}
 	}
 	return b.String()
