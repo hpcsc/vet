@@ -35,6 +35,18 @@ func TestStyle(t *testing.T) {
 		require.Equal(t, "\x1b[1mvet\x1b[m", Bold("vet"))
 		require.Equal(t, "\x1b[2mq quit\x1b[m", Faint("q quit"))
 	})
+
+	t.Run("draws a pane around the content the interactive view passes it", func(t *testing.T) {
+		setColor(t, false)
+
+		require.Equal(t, "┌───────┐\n│ value │\n└───────┘", Frame().Render("value"))
+	})
+
+	t.Run("paints the pane in a gray the report never uses", func(t *testing.T) {
+		setColor(t, true)
+
+		require.Contains(t, Frame().Render("value"), "\x1b[90m┌")
+	})
 }
 
 func setColor(t *testing.T, on bool) {

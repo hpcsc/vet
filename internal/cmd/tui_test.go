@@ -108,6 +108,24 @@ func tuiFrame(t *testing.T, model tuiModel) string {
 	return model.View().Content
 }
 
+// tuiPane returns the lines the view draws around the selected answer.
+func tuiPane(t *testing.T, model tuiModel) []string {
+	t.Helper()
+	lines := strings.Split(strings.TrimRight(tuiFrame(t, model), "\n"), "\n")
+	for start, line := range lines {
+		if !strings.HasPrefix(line, "┌") {
+			continue
+		}
+		for end := start; end < len(lines); end++ {
+			if strings.HasPrefix(lines[end], "└") {
+				return lines[start : end+1]
+			}
+		}
+	}
+	t.Fatal("the view draws no pane around the selected answer")
+	return nil
+}
+
 func TestTUI(t *testing.T) {
 	t.Run("run", func(t *testing.T) {
 		t.Run("draws the report on the alternate screen and returns on quit", func(t *testing.T) {
@@ -135,9 +153,8 @@ func TestTUI(t *testing.T) {
 			model = tuiPress(t, model, "down")
 
 			require.Equal(t, 1, model.selected)
-			view := tuiFrame(t, model)
-			require.Contains(t, view, "  ▸ ✗  noul    failing-rule  90%")
-			require.Contains(t, view, "\n  failing-rule\n")
+			require.Contains(t, tuiFrame(t, model), "  ▸ ✗  noul    failing-rule  90%")
+			require.Contains(t, tuiPane(t, model)[1], "failing-rule")
 		})
 
 		t.Run("wraps from the first answer to the last on up", func(t *testing.T) {
@@ -154,7 +171,7 @@ func TestTUI(t *testing.T) {
 			view := tuiFrame(t, model)
 			require.LessOrEqual(t, strings.Count(view, "\n"), 12)
 			require.Contains(t, view, "  ▸ ✗  noul    rule-21  90%")
-			require.Contains(t, view, "\n  rule-21\n")
+			require.Contains(t, tuiPane(t, model)[1], "rule-21")
 			require.Contains(t, view, "q quit")
 			require.NotContains(t, view, "rule-01")
 		})
@@ -195,6 +212,17 @@ func TestTUI(t *testing.T) {
 			require.Contains(t, tuiFrame(t, model), "No rules to display.")
 		})
 
+		t.Run("draws the details in a pane that spans the terminal", func(t *testing.T) {
+			pane := tuiPane(t, tuiModelAt(t, tuiReport(), true, 80, 24))
+
+			require.Len(t, pane, 6)
+			require.Equal(t, "┌"+strings.Repeat("─", 78)+"┐", pane[0])
+			require.Equal(t, "└"+strings.Repeat("─", 78)+"┘", pane[len(pane)-1])
+			for _, line := range pane {
+				require.Equal(t, 80, lipgloss.Width(line))
+			}
+		})
+
 		t.Run("keeps every line inside the terminal width", func(t *testing.T) {
 			for _, size := range []tuiSize{{width: 80, height: 24}, {width: 60, height: 14}, {width: 40, height: 10}, {width: 24, height: 8}} {
 				for _, report := range []verdict.Report{tuiReport(), wideTUIReport()} {
@@ -211,9 +239,9 @@ func TestTUI(t *testing.T) {
 
 			view := tuiFrame(t, model)
 			require.LessOrEqual(t, strings.Count(view, "\n"), 10)
-			require.Contains(t, view, "\n  passing-rule\n")
-			require.Contains(t, view, "    file          change.txt")
-			require.NotContains(t, view, "group")
+			pane := tuiPane(t, model)
+			require.Len(t, pane, 3)
+			require.Contains(t, pane[1], "passing-rule")
 			require.Contains(t, view, "q quit")
 		})
 	})

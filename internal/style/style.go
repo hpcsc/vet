@@ -21,6 +21,7 @@ var (
 	ruleColor  = lipgloss.NewStyle().Foreground(lipgloss.Color("4"))
 	passColor  = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
 	failColor  = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	frameColor = lipgloss.Color("8")
 
 	// lipgloss paints every string, and the text report is assembled as a
 	// string, so the color profile decides here instead of at write time.
@@ -35,6 +36,16 @@ func Type(s string) string  { return colorize(typeColor, s) }
 func Rule(s string) string  { return colorize(ruleColor, s) }
 func Pass(s string) string  { return colorize(passColor, s) }
 func Fail(s string) string  { return colorize(failColor, s) }
+
+// Frame draws the box around a pane of the interactive view. A pane is chrome
+// rather than report, so the border stays a gray the text report never uses.
+func Frame() lipgloss.Style {
+	frame := lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Padding(0, 1)
+	if !useColor {
+		return frame
+	}
+	return frame.BorderForeground(frameColor)
+}
 
 func colorize(paint lipgloss.Style, s string) string {
 	if !useColor {

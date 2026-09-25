@@ -23,9 +23,9 @@ const (
 	// tuiValueGap keeps the value clear of the longest rule.
 	tuiValueGap = 2
 
-	// tuiFrameLines are the lines around the list: header, blank, blank,
-	// separator, details title, blank, hints.
-	tuiFrameLines = 7
+	// tuiFrameLines are the lines the list cannot take: header, blank, blank,
+	// the box around the details, the details title, blank and hints.
+	tuiFrameLines = 8
 )
 
 // tuiRowHeadWidth is the marker, mark, kind and gaps that open every row.
@@ -150,9 +150,7 @@ func (m tuiModel) frame() string {
 		room = max(room, 1)
 	}
 	lines = append(lines, m.listLines(rows, room)...)
-	lines = append(lines, "", m.separator(), m.detailTitle(rows[m.selected]))
-	lines = append(lines, fields...)
-	lines = append(lines, "", m.hintLine())
+	lines = append(lines, "", m.detailsBox(rows[m.selected], fields), "", m.hintLine())
 	return m.fit(lines)
 }
 
@@ -213,19 +211,32 @@ func (m tuiModel) hintLine() string {
 	return style.Faint(hint)
 }
 
-func (m tuiModel) separator() string {
-	if m.size.width < 1 {
-		return ""
+// detailsBox draws the details of the selected answer in a pane of its own,
+// so the part of the screen that answers the selected rule cannot be mistaken
+// for another row of the list. The pane spans the terminal, so it lines up
+// with the list above it.
+func (m tuiModel) detailsBox(row tuiRow, fields []string) string {
+	lines := append([]string{m.detailTitle(row)}, fields...)
+	frame := style.Frame()
+	if m.size.width > 0 {
+		frame = frame.Width(m.size.width)
 	}
-	return style.Faint(strings.Repeat("─", m.size.width))
+	return frame.Render(strings.Join(lines, "\n"))
+}
+
+// detailsRoom is the room a line inside the details pane has once the box
+// takes its border, its padding and the indent the line carries.
+func (m tuiModel) detailsRoom() int {
+	frame := style.Frame()
+	return m.size.width - frame.GetHorizontalBorderSize() - frame.GetHorizontalPadding() - lipgloss.Width(tuiGap)
 }
 
 func (m tuiModel) detailTitle(row tuiRow) string {
 	rule, description := row.answer.Rule, row.answer.Description
 	if m.size.width > 0 {
-		room := m.size.width - lipgloss.Width(tuiGap+tuiGap) - lipgloss.Width("·  ")
+		room := m.detailsRoom()
 		rule = tuiFit(rule, room)
-		if rest := room - lipgloss.Width(rule); rest > 0 {
+		if rest := room - lipgloss.Width(rule) - lipgloss.Width(tuiGap+"·  "); rest > 0 {
 			description = tuiFit(description, rest)
 		} else {
 			description = ""
@@ -264,9 +275,9 @@ func (m tuiModel) detailFields(row tuiRow) []string {
 	for _, field := range fields {
 		value := field[1]
 		if m.size.width > 0 {
-			value = tuiFit(value, m.size.width-lipgloss.Width(tuiGap+tuiGap)-tuiLabelWidth-1)
+			value = tuiFit(value, m.detailsRoom()-tuiLabelWidth-1)
 		}
-		lines = append(lines, tuiGap+tuiGap+style.Faint(tuiPad(field[0], tuiLabelWidth+1))+value)
+		lines = append(lines, tuiGap+style.Faint(tuiPad(field[0], tuiLabelWidth+1))+value)
 	}
 	return lines
 }
