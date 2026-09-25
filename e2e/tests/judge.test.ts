@@ -3,7 +3,7 @@ import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { join } from 'node:path'
 import { describe, expect, it, onTestFinished } from 'vitest'
-import { gitRepoWithChange, runCli } from '../testUtils'
+import { gitRepoWithChange, runCli, scratchDir } from '../testUtils'
 
 const questionsFile = `version: 1
 name: the rules
@@ -98,12 +98,24 @@ function judgeArgs(api: string): string[] {
 }
 
 describe('the judge', () => {
-  it('reports a change that violates no rule and exits 0', async () => {
+  it('hides passing rules when a change violates no rule and exits 0', async () => {
     const repo = gitRepoWithChange()
     writeFileSync(join(repo, 'questions.yaml'), questionsFile)
     const api = await fakeSystemOne(cleanAnswers)
 
     const result = await runCli(repo, judgeArgs(api))
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).not.toContain('✓ [noul]')
+    expect(result.stdout).toContain('The change violates no rule.')
+  })
+
+  it('shows passing rules with --all', async () => {
+    const repo = gitRepoWithChange()
+    writeFileSync(join(repo, 'questions.yaml'), questionsFile)
+    const api = await fakeSystemOne(cleanAnswers)
+
+    const result = await runCli(repo, [...judgeArgs(api), '--all'])
 
     expect(result.status).toBe(0)
     expect(result.stdout).toContain('the rules')
@@ -135,12 +147,26 @@ describe('the judge', () => {
     expect(result.stderr).toBe('')
   })
 
-  it('prints the report as JSON with --json', async () => {
+  it('hides passing answers in JSON by default', async () => {
     const repo = gitRepoWithChange()
     writeFileSync(join(repo, 'questions.yaml'), questionsFile)
     const api = await fakeSystemOne(cleanAnswers)
 
     const result = await runCli(repo, [...judgeArgs(api), '--json'])
+
+    expect(result.status).toBe(0)
+    const report = JSON.parse(result.stdout)
+    expect(report.base).toBe('HEAD~1')
+    expect(report.violations).toBe(0)
+    expect(report.groups).toEqual([])
+  })
+
+  it('prints all answers in JSON with --all', async () => {
+    const repo = gitRepoWithChange()
+    writeFileSync(join(repo, 'questions.yaml'), questionsFile)
+    const api = await fakeSystemOne(cleanAnswers)
+
+    const result = await runCli(repo, [...judgeArgs(api), '--json', '--all'])
 
     expect(result.status).toBe(0)
     const report = JSON.parse(result.stdout)
@@ -218,8 +244,13 @@ rules:
     const repo = gitRepoWithChange()
     writeFileSync(join(repo, 'questions.yaml'), questionsFile)
     const api = await fakeSystemOne(cleanAnswers)
+    const configHome = scratchDir()
 
-    const result = await runCli(repo, ['--base', 'HEAD~1', '--api-url', api, '--questions', 'questions.yaml'])
+    const result = await runCli(
+      repo,
+      ['--base', 'HEAD~1', '--api-url', api, '--questions', 'questions.yaml'],
+      { XDG_CONFIG_HOME: configHome, TYPESAFE_API_KEY: '' },
+    )
 
     expect(result.status).toBe(2)
     expect(result.stdout).toContain('no API key')

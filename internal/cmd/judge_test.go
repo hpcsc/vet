@@ -94,8 +94,21 @@ rules:
 	}
 
 	t.Run("clean change", func(t *testing.T) {
-		t.Run("prints checks and a no-violation summary", func(t *testing.T) {
+		t.Run("hides passing checks and prints a no-violation summary", func(t *testing.T) {
 			j, _ := setup(t, cleanAnswers)
+
+			err := j.run(ctx)
+
+			require.NoError(t, err)
+			text := j.out.(*bytes.Buffer).String()
+			require.NotContains(t, text, "no-flag-field")
+			require.NotContains(t, text, "✓")
+			require.Contains(t, text, "The change violates no rule.")
+		})
+
+		t.Run("shows passing checks with all", func(t *testing.T) {
+			j, _ := setup(t, cleanAnswers)
+			j.all = true
 
 			err := j.run(ctx)
 
@@ -164,6 +177,40 @@ rules:
 			require.NoError(t, json.Unmarshal(j.out.(*bytes.Buffer).Bytes(), &report))
 			require.Equal(t, "origin/main", report["base"])
 			require.Equal(t, float64(3), report["violations"])
+		})
+
+		t.Run("hides passing answers from JSON by default", func(t *testing.T) {
+			j, _ := setup(t, cleanAnswers)
+			j.json = true
+
+			err := j.run(ctx)
+
+			require.NoError(t, err)
+			var report map[string]any
+			require.NoError(t, json.Unmarshal(j.out.(*bytes.Buffer).Bytes(), &report))
+			groups, ok := report["groups"].([]any)
+			require.True(t, ok)
+			require.Empty(t, groups)
+		})
+
+		t.Run("includes passing answers in JSON with all", func(t *testing.T) {
+			j, _ := setup(t, cleanAnswers)
+			j.json = true
+			j.all = true
+
+			err := j.run(ctx)
+
+			require.NoError(t, err)
+			var report map[string]any
+			require.NoError(t, json.Unmarshal(j.out.(*bytes.Buffer).Bytes(), &report))
+			groups, ok := report["groups"].([]any)
+			require.True(t, ok)
+			require.Len(t, groups, 1)
+			group, ok := groups[0].(map[string]any)
+			require.True(t, ok)
+			answers, ok := group["answers"].([]any)
+			require.True(t, ok)
+			require.Len(t, answers, 3)
 		})
 	})
 

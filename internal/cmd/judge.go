@@ -28,6 +28,7 @@ type judge struct {
 	questions string
 	base      string
 	json      bool
+	all       bool
 	exit      bool
 }
 
@@ -101,11 +102,14 @@ func (j *judge) askAll(ctx context.Context, file questions.File, files []diff.Fi
 }
 
 func (j *judge) render(report verdict.Report) error {
+	if !j.all {
+		report = report.ViolationsOnly()
+	}
 	if j.json {
 		enc := json.NewEncoder(j.out)
 		enc.SetIndent("", "  ")
 		return enc.Encode(report)
 	}
-	_, err := fmt.Fprintln(j.out, report.Text())
+	_, err := fmt.Fprintln(j.out, report.TextWithPassing())
 	return err
 }

@@ -42,6 +42,7 @@ func newCommand() *cli.Command {
 			&cli.StringFlag{Name: "base", Usage: "the git ref to compare against, instead of the detected base"},
 			&cli.StringFlag{Name: "questions", Value: "", Usage: "the path of the questions file or directory (default questions.yaml in the working directory)"},
 			&cli.BoolFlag{Name: "json", Usage: "print the report as JSON"},
+			&cli.BoolFlag{Name: "all", Usage: "show passing and failing rules"},
 			&cli.BoolFlag{Name: "exit-code", Usage: "exit 1 when the change violates a rule"},
 			&cli.StringFlag{Name: "api-url", Value: "", Usage: "the System One endpoint (default https://api.typesafe.ai/v1/systemone, or TYPESAFE_API_URL)"},
 			&cli.StringFlag{Name: "model", Value: "jev-latest", Usage: "the model to judge with"},
@@ -89,6 +90,7 @@ func judgeAction(ctx context.Context, cmd *cli.Command) error {
 		questions: questions,
 		base:      cmd.String("base"),
 		json:      cmd.Bool("json"),
+		all:       cmd.Bool("all"),
 		exit:      cmd.Bool("exit-code"),
 	}
 	return judger.run(ctx)
