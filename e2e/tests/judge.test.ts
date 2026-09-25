@@ -180,6 +180,40 @@ describe('the judge', () => {
     ])
   })
 
+  it('does not ask the backend about a file that no rule applies to', async () => {
+    const repo = gitRepoWithChange()
+    const goOnly = `version: 1
+name: go rules
+rules:
+  - id: go-naming
+    description: The change names the Go identifiers well.
+    instructions: Rate how well the change names the identifiers.
+    type: score
+    scores:
+      - well
+      - poorly
+    scoreLimit: 1
+    files:
+      - '**/*.go'
+`
+    writeFileSync(join(repo, 'questions.yaml'), goOnly)
+    let hits = 0
+    const server = createServer((_request, response) => {
+      hits++
+      response.statusCode = 500
+      response.end('a request should not have been made')
+    })
+    await new Promise<void>((done) => server.listen(0, '127.0.0.1', done))
+    onTestFinished(() => new Promise<void>((done) => server.close(() => done())))
+    const api = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+
+    const result = await runCli(repo, judgeArgs(api))
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('The change violates no rule.')
+    expect(hits).toBe(0)
+  })
+
   it('fails with exit 2 when no API key is set', async () => {
     const repo = gitRepoWithChange()
     writeFileSync(join(repo, 'questions.yaml'), questionsFile)

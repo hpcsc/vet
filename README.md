@@ -96,6 +96,31 @@ rules:
     noulLimit: 0.5
 ```
 
+### Scoping a rule to files
+
+A rule can limit itself to some files and away from others. `files` holds globs of the
+file paths the rule applies to, `exclude` removes the matched paths again, and `**`
+crosses directories. A rule without `files` applies to every file, and an `exclude`
+alone means every file but the matched ones:
+
+```yaml
+version: 1
+rules:
+  - id: go-naming
+    description: The change names the identifiers well.
+    instructions: Rate how well the change names the identifiers.
+    type: score
+    scores: [well, poorly]
+    scoreLimit: 1
+    files:
+      - "**/*.go"
+    exclude:
+      - "**/*_test.go"
+```
+
+A changed file that no rule applies to is skipped: `vet` does not ask the model about it,
+so a README-only change answers none of the Go naming rules.
+
 ### Referencing other files
 
 A `context` or an `instructions` that starts with `@` names a file whose content is read instead, so a rule

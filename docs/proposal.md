@@ -97,6 +97,24 @@ rules:
 
 Each rule has an `id`, the `instructions` it answers, a `type`, and the fields that type needs. An optional `description` labels the rule in the report, and the `id` stands in when it is missing.
 
+A rule can also name the files it applies to. An optional `files` list holds globs of the paths the rule judges, and an optional `exclude` list removes paths again; `**` crosses directories. A rule without `files` applies to every file, and an `exclude` alone means every file but the matched ones:
+
+```yaml
+version: 1
+rules:
+  - id: go-naming
+    instructions: Rate how well the change names the identifiers.
+    type: score
+    scores: [well, poorly]
+    scoreLimit: 1
+    files:
+      - "**/*.go"
+    exclude:
+      - "**/*_test.go"
+```
+
+A changed file that no rule applies to is skipped: the tool does not ask the backend about it, so a change to a README answers none of the Go naming rules.
+
 `context` and `instructions` also accept a file reference: when the value begins with `@`, the tool reads the file and uses its content instead. The path is relative to the questions file, and a leading `~` expands to the home directory. This lets a rule point at the guideline it measures instead of copying it, and lets one questions file reuse the same guideline files as the repository's other tooling.
 
 ```yaml
@@ -121,6 +139,7 @@ The tool validates the file before it asks the backend. It rejects a file when:
 
 - A rule has no id, or empty instructions.
 - A `@` reference names a file the tool cannot read.
+- A `files` or `exclude` glob does not parse.
 - `noulLimit` is outside 0 to 1.
 - `violatesWhen` names a key that is not in `choices`.
 - `scoreLimit` is outside the `scores` range.
@@ -238,7 +257,7 @@ The command returns an `exitCode` value instead of an error for the violation ca
 3. List the changed files between the base and `HEAD`.
 4. Build one unified diff per changed file.
 5. Load and validate the questions file.
-6. Ask the backend for every changed file. Files run in parallel, limited by a semaphore of about 4.
+6. Ask the backend for the changed files that a rule applies to. Files run in parallel, limited by a semaphore of about 4.
 7. Judge the answers against the rules.
 8. Print the report, and apply the exit code.
 
