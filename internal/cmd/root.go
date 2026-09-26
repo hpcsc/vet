@@ -39,7 +39,7 @@ func newCommand() *cli.Command {
 		Version:               version.Current(),
 		EnableShellCompletion: true,
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "base", Usage: "the git ref to compare against, instead of the detected base"},
+			&cli.StringFlag{Name: "base", Usage: "the git ref to compare against, also accepted as a bare argument, instead of the detected base"},
 			&cli.StringFlag{Name: "questions", Value: "", Usage: "the path of the questions file or directory (default questions.yaml in the working directory)"},
 			&cli.StringFlag{
 				Name:      "output",
@@ -101,12 +101,19 @@ func judgeAction(ctx context.Context, cmd *cli.Command) error {
 		repo:      git.New(repoDir),
 		backend:   jev.NewClient(&http.Client{Timeout: 2 * time.Minute}, apiURL, model, apiKey),
 		questions: questions,
-		base:      cmd.String("base"),
+		base:      baseOf(cmd.String("base"), cmd.Args().First()),
 		output:    output,
 		all:       cmd.Bool("all"),
 		exit:      cmd.Bool("exit-code"),
 	}
 	return judger.run(ctx)
+}
+
+func baseOf(flag, arg string) string {
+	if flag != "" {
+		return flag
+	}
+	return arg
 }
 
 func newConfigCommand() *cli.Command {

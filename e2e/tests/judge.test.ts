@@ -110,6 +110,38 @@ describe('the judge', () => {
     expect(result.stdout).toContain('The change violates no rule.')
   })
 
+  it('judges against the base given as a bare argument', async () => {
+    const repo = gitRepoWithChange()
+    writeFileSync(join(repo, 'questions.yaml'), questionsFile)
+    const api = await fakeSystemOne(cleanAnswers)
+
+    const result = await runCli(repo, [
+      'HEAD~1',
+      '--api-key',
+      'test',
+      '--api-url',
+      api,
+      '--questions',
+      'questions.yaml',
+      '--output',
+      'json',
+    ])
+
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout).base).toBe('HEAD~1')
+  })
+
+  it('reads a subcommand name as that subcommand, never as a base', async () => {
+    const repo = gitRepoWithChange()
+    writeFileSync(join(repo, 'questions.yaml'), questionsFile)
+    const api = await fakeSystemOne(cleanAnswers)
+
+    const result = await runCli(repo, ['config', '--api-key', 'test', '--api-url', api])
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('vet config')
+  })
+
   it('shows passing rules with --all', async () => {
     const repo = gitRepoWithChange()
     writeFileSync(join(repo, 'questions.yaml'), questionsFile)
