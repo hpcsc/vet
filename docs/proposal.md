@@ -23,6 +23,7 @@ A code review checks a diff against guidelines that live in the reviewer's memor
 | Command | Work |
 | --- | --- |
 | `vet` | Judge the diff against the questions file |
+| `vet <ref>` | The same, against a named base |
 | `vet questions example` | Print an example questions file |
 | `vet questions init` | Write the default questions file where vet looks for it |
 | `vet config example` | Print the default config file |
@@ -34,7 +35,7 @@ A code review checks a diff against guidelines that live in the reviewer's memor
 
 | Flag | Default | Work |
 | --- | --- | --- |
-| `--base` | Detected | The git ref to compare against |
+| `--base` | The bare argument, else detected | The git ref to compare against |
 | `--questions` | The config, then `questions.yaml` in the working directory | The path of the questions file, or a directory of them |
 | `--config` | `$XDG_CONFIG_HOME/vet/config.yaml` (or `~/.config/vet/config.yaml`) | The path of the config file |
 | `--output`, `-o` | `text` | Report mode: `text`, `json`, or `tui` |
@@ -46,13 +47,15 @@ A code review checks a diff against guidelines that live in the reviewer's memor
 
 The base detection tries these refs in order, and uses the first one that `git rev-parse --verify --quiet` accepts:
 
-1. `--base`
+1. `--base`, else the bare argument
 2. `origin/HEAD`
 3. `origin/main`
 4. `origin/master`
 5. `main`
 6. `master`
 7. `HEAD~1`
+
+The tool reads the first argument as a subcommand when it names one, so `config`, `questions`, `version`, `update`, and `help` reach that subcommand instead of the judge. A base with one of those names needs `--base`.
 
 The tool reads the API key from `TYPESAFE_API_KEY` when the flag is empty. It fails with a clear message when no key exists.
 

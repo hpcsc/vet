@@ -43,7 +43,8 @@ update command do the same kind of job; use whichever you find convenient on a f
 
 ```shell
 vet                                # judge the diff from the base to HEAD against questions.yaml
-vet --base origin/main             # compare against a specific base
+vet origin/main                    # compare against a specific base
+vet --base origin/main             # the same, spelled with a flag
 vet --questions my-rules.yaml      # use a different questions file, or a directory of them
 vet --output json                  # print the report as JSON
 vet -o tui                          # open the interactive report
@@ -235,8 +236,10 @@ rules:
 The reference works in both places: a `@` `context` and a `@` `instructions` each read their own file, and
 so does every questions file when you pass a directory of them.
 
-`docs/proposal.md` specifies the file format in full. The base is
-`--base` when given, else `origin/HEAD`, then `origin/main`, `origin/master`, `main`, `master`, and `HEAD~1`.
+`docs/proposal.md` specifies the file format in full. The base is the bare argument when you give one,
+else `--base`, else `origin/HEAD`, then `origin/main`, `origin/master`, `main`, `master`, and `HEAD~1`.
+Five words name a subcommand, so `vet` reads them as that subcommand rather than as a base: `config`,
+`questions`, `version`, `update`, and `help`. A branch with one of those names needs `--base`.
 
 ## Version and update
 
