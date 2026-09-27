@@ -57,21 +57,29 @@ func (r *Repo) DetectBase(ctx context.Context, base string) (string, error) {
 	return "", fmt.Errorf("no base ref resolves (tried %s)", strings.Join(used, ", "))
 }
 
-func (r *Repo) ChangedFiles(ctx context.Context, base string) ([]string, error) {
+// Change is one file the base commit and HEAD disagree on. From is the path the
+// file had at the base commit, and is set only when the change moves or copies
+// the file.
+type Change struct {
+	Path string
+	From string
+}
+
+func (r *Repo) Changes(ctx context.Context, base string) ([]Change, error) {
 	out, err := r.run(ctx, "diff", "--raw", "-z", "--no-abbrev", "-M", base, "HEAD")
 	if err != nil {
 		return nil, err
 	}
-	return changedPaths(out), nil
+	return changes(out), nil
 }
 
-func (r *Repo) UnifiedDiff(ctx context.Context, base, path string) (string, error) {
-	return r.run(ctx, "diff", "-M", "-U3", base, "HEAD", "--", path)
+func (r *Repo) UnifiedDiff(ctx context.Context, base string, paths ...string) (string, error) {
+	return r.run(ctx, append([]string{"diff", "-M", "-U3", base, "HEAD", "--"}, paths...)...)
 }
 
-func changedPaths(out string) []string {
+func changes(out string) []Change {
 	tokens := strings.Split(out, "\x00")
-	var paths []string
+	var found []Change
 	for i := 0; i < len(tokens); i++ {
 		token := tokens[i]
 		if !strings.HasPrefix(token, ":") {
@@ -82,15 +90,20 @@ func changedPaths(out string) []string {
 			continue
 		}
 		status := fields[4][0]
-		next := i + 1
-		if status == 'R' || status == 'C' {
-			next++
-		}
-		if next < len(tokens) {
-			paths = append(paths, tokens[next])
+		switch status {
+		case 'R', 'C':
+			if i+2 < len(tokens) {
+				found = append(found, Change{Path: tokens[i+2], From: tokens[i+1]})
+			}
+			i += 2
+		default:
+			if i+1 < len(tokens) {
+				found = append(found, Change{Path: tokens[i+1]})
+			}
+			i++
 		}
 	}
-	return paths
+	return found
 }
 
 // ok runs git for a yes or no answer: true for exit 0, false for exit 1.

@@ -15,17 +15,23 @@ func NewLoader(repo *git.Repo) *Loader {
 }
 
 func (l *Loader) Load(ctx context.Context, base string) ([]File, error) {
-	paths, err := l.repo.ChangedFiles(ctx, base)
+	changes, err := l.repo.Changes(ctx, base)
 	if err != nil {
 		return nil, err
 	}
-	files := make([]File, 0, len(paths))
-	for _, path := range paths {
-		text, err := l.repo.UnifiedDiff(ctx, base, path)
+	files := make([]File, 0, len(changes))
+	for _, change := range changes {
+		// git only pairs a rename when it sees both paths, so a moved file gets
+		// the other path too and the patch keeps its rename headers.
+		paths := []string{change.Path}
+		if change.From != "" {
+			paths = append(paths, change.From)
+		}
+		text, err := l.repo.UnifiedDiff(ctx, base, paths...)
 		if err != nil {
 			return nil, err
 		}
-		files = append(files, File{Path: path, Diff: text})
+		files = append(files, File{Path: change.Path, From: change.From, Diff: text})
 	}
 	return files, nil
 }

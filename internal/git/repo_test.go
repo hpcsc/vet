@@ -122,16 +122,16 @@ func TestRepo(t *testing.T) {
 		})
 	})
 
-	t.Run("changed files", func(t *testing.T) {
+	t.Run("changes", func(t *testing.T) {
 		t.Run("lists every file the head changed", func(t *testing.T) {
 			repo := gittest.NewWithRemote(t)
 			repo.Commit("one.go", "one\n", "Add one.go")
 			repo.Commit("two.go", "two\n", "Add two.go")
 
-			paths, err := New(repo.Dir).ChangedFiles(ctx, "origin/main")
+			changes, err := New(repo.Dir).Changes(ctx, "origin/main")
 
 			require.NoError(t, err)
-			require.Equal(t, []string{"one.go", "two.go"}, paths)
+			require.Equal(t, []Change{{Path: "one.go"}, {Path: "two.go"}}, changes)
 		})
 
 		t.Run("gives the destination path of a rename", func(t *testing.T) {
@@ -139,10 +139,10 @@ func TestRepo(t *testing.T) {
 			repo.Git("mv", "code.go", "moved.go")
 			repo.Git("commit", "-q", "-m", "Rename code.go")
 
-			paths, err := New(repo.Dir).ChangedFiles(ctx, "origin/main")
+			changes, err := New(repo.Dir).Changes(ctx, "origin/main")
 
 			require.NoError(t, err)
-			require.Equal(t, []string{"moved.go"}, paths)
+			require.Equal(t, []Change{{Path: "moved.go", From: "code.go"}}, changes)
 		})
 
 		t.Run("lists a deleted file", func(t *testing.T) {
@@ -150,10 +150,21 @@ func TestRepo(t *testing.T) {
 			repo.Git("rm", "code.go")
 			repo.Git("commit", "-q", "-m", "Delete code.go")
 
-			paths, err := New(repo.Dir).ChangedFiles(ctx, "origin/main")
+			changes, err := New(repo.Dir).Changes(ctx, "origin/main")
 
 			require.NoError(t, err)
-			require.Equal(t, []string{"code.go"}, paths)
+			require.Equal(t, []Change{{Path: "code.go"}}, changes)
+		})
+
+		t.Run("gives no previous path for a file that stays put", func(t *testing.T) {
+			repo := gittest.NewWithRemote(t)
+			repo.Commit("code.go", "one\n", "Add code.go")
+			repo.Commit("code.go", "two\n", "Change code.go")
+
+			changes, err := New(repo.Dir).Changes(ctx, "origin/main")
+
+			require.NoError(t, err)
+			require.Equal(t, []Change{{Path: "code.go"}}, changes)
 		})
 	})
 
@@ -180,6 +191,29 @@ func TestRepo(t *testing.T) {
 
 			require.NoError(t, err)
 			require.Contains(t, diff, "code.go")
+		})
+
+		t.Run("pairs a rename when both paths are named", func(t *testing.T) {
+			repo := gittest.NewWithRemote(t)
+			repo.Git("mv", "code.go", "moved.go")
+			repo.Git("commit", "-q", "-m", "Rename code.go")
+
+			diff, err := New(repo.Dir).UnifiedDiff(ctx, "origin/main", "moved.go", "code.go")
+
+			require.NoError(t, err)
+			require.Contains(t, diff, "rename from code.go")
+			require.Contains(t, diff, "rename to moved.go")
+		})
+
+		t.Run("hides the rename headers when only the destination is named", func(t *testing.T) {
+			repo := gittest.NewWithRemote(t)
+			repo.Git("mv", "code.go", "moved.go")
+			repo.Git("commit", "-q", "-m", "Rename code.go")
+
+			diff, err := New(repo.Dir).UnifiedDiff(ctx, "origin/main", "moved.go")
+
+			require.NoError(t, err)
+			require.NotContains(t, diff, "rename from")
 		})
 	})
 }
