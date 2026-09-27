@@ -25,3 +25,7 @@ bin
 dist/
 
 e2e/node_modules/
+
+# A local measurement tool, not part of vet. Kept out of the repo so the
+# questions-file evidence in docs/ is not read as something CI can re-run.
+hack/audit/
