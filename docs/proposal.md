@@ -237,10 +237,11 @@ row, and a row carries the file it judged.
     {
       "name": "naming-patterns.yaml",
       "answers": [
-        { "path": "internal/repo.go", "rule": "no-flag-field", "description": "The change adds a flag field to the request struct.", "value": 0.2 },
+        { "path": "internal/repo.go", "rule": "no-flag-field", "description": "The change adds a flag field to the request struct.", "value": 0.2, "type": "noul" },
         {
           "path": "internal/repo.go",
           "rule": "database-migration",
+          "type": "choice",
           "description": "How the change touches the database.",
           "value": "migrates",
           "violates": true,

@@ -15,7 +15,7 @@ type Row struct {
 	Description   string             `json:"description,omitempty"`
 	Path          string             `json:"path"`
 	Value         any                `json:"value"`
-	Type          questions.Kind     `json:"-"`
+	Type          questions.Kind     `json:"type,omitempty"`
 	Label         string             `json:"label,omitempty"`
 	Violates      bool               `json:"violates,omitempty"`
 	Unsure        bool               `json:"unsure,omitempty"`

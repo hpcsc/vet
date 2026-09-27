@@ -99,11 +99,11 @@ rules:
 			require.Equal(t, 1, report.Violations)
 		})
 
-		t.Run("the row omits any confidence", func(t *testing.T) {
+		t.Run("the row carries its type so a reader need not guess it from the value", func(t *testing.T) {
 			raw, err := json.Marshal(row(t, judge(t, []backend.Answer{{Rule: "no-flag-field", Noul: noul(0.2)}})))
 
 			require.NoError(t, err)
-			require.JSONEq(t, `{"rule":"no-flag-field","description":"the change adds a flag field","path":"internal/repo.go","value":0.2}`, string(raw))
+			require.JSONEq(t, `{"rule":"no-flag-field","description":"the change adds a flag field","path":"internal/repo.go","value":0.2,"type":"noul"}`, string(raw))
 		})
 
 		t.Run("a value just under the limit violates nothing and is unsure", func(t *testing.T) {
@@ -130,7 +130,7 @@ rules:
 			raw, err := json.Marshal(row(t, judge(t, []backend.Answer{{Rule: "no-flag-field", Noul: noul(0.47)}})))
 
 			require.NoError(t, err)
-			require.JSONEq(t, `{"rule":"no-flag-field","description":"the change adds a flag field","path":"internal/repo.go","value":0.47,"unsure":true}`, string(raw))
+			require.JSONEq(t, `{"rule":"no-flag-field","description":"the change adds a flag field","path":"internal/repo.go","value":0.47,"type":"noul","unsure":true}`, string(raw))
 		})
 	})
 
@@ -352,7 +352,7 @@ rules:
 			row := row(t, report)
 			raw, err := json.Marshal(row)
 			require.NoError(t, err)
-			require.JSONEq(t, `{"rule":"log-guideline","description":"how well the change follows the logging guideline","path":"a.go","value":2,"label":"third","violates":true,"probabilities":{"0":0.05,"1":0.3,"2":0.65},"legend":{"0":"first","1":"second","2":"third"}}`, string(raw))
+			require.JSONEq(t, `{"rule":"log-guideline","description":"how well the change follows the logging guideline","path":"a.go","value":2,"type":"score","label":"third","violates":true,"probabilities":{"0":0.05,"1":0.3,"2":0.65},"legend":{"0":"first","1":"second","2":"third"}}`, string(raw))
 		})
 
 		t.Run("lists every violated rule with its file in the summary", func(t *testing.T) {
