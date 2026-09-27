@@ -12,6 +12,7 @@ import (
 
 	"github.com/hpcsc/vet/internal/backend/jev"
 	"github.com/hpcsc/vet/internal/diff"
+	"github.com/hpcsc/vet/internal/material"
 	"github.com/hpcsc/vet/internal/questions"
 	"github.com/stretchr/testify/require"
 )
@@ -74,10 +75,57 @@ rules:
 			var got map[string]any
 			server := newServer(t, `{"no-flag-field":{"type":"noul","noul":0.2}}`, &got)
 
-			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, contextFile)
+			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, contextFile, nil)
 
 			require.NoError(t, err)
 			require.Equal(t, "use slog\n\nFile: a.go\n\n@@ -1 +1 @@", got["state"])
+		})
+
+		t.Run("puts the material after the diff, so the change being judged stays last", func(t *testing.T) {
+			var got map[string]any
+			server := newServer(t, `{"no-flag-field":{"type":"noul","noul":0.2}}`, &got)
+			sections := []material.Section{{
+				Include: questions.SiblingFilePaths,
+				Content: "Files in this directory:\ninternal/diff/file.go",
+			}}
+
+			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, noulFile, sections)
+
+			require.NoError(t, err)
+			require.Equal(t,
+				"File: a.go\n\n@@ -1 +1 @@\n\nRepository material for a.go (siblingFilePaths):\n\nFiles in this directory:\ninternal/diff/file.go",
+				got["state"])
+		})
+
+		t.Run("puts the material under the context, so the guideline still leads", func(t *testing.T) {
+			var got map[string]any
+			server := newServer(t, `{"no-flag-field":{"type":"noul","noul":0.2}}`, &got)
+			contextFile := mustParse(t, `version: 1
+context: use slog
+rules:
+  - id: no-flag-field
+    instructions: adds a flag field
+    type: noul
+    noulLimit: 0.5
+`)
+			sections := []material.Section{{Include: questions.FileContent, Content: "package a"}}
+
+			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, contextFile, sections)
+
+			require.NoError(t, err)
+			require.Equal(t,
+				"use slog\n\nFile: a.go\n\n@@ -1 +1 @@\n\nRepository material for a.go (fileContent):\n\npackage a",
+				got["state"])
+		})
+
+		t.Run("leaves the state alone when there is no material", func(t *testing.T) {
+			var got map[string]any
+			server := newServer(t, `{"no-flag-field":{"type":"noul","noul":0.2}}`, &got)
+
+			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, noulFile, []material.Section{})
+
+			require.NoError(t, err)
+			require.Equal(t, "File: a.go\n\n@@ -1 +1 @@", got["state"])
 		})
 
 		t.Run("posts the file, the model and the questions to the endpoint", func(t *testing.T) {
@@ -95,7 +143,7 @@ rules:
 			defer server.Close()
 			client := jev.NewClient(server.Client(), server.URL+"/v1/systemone", "jev-latest", "secret")
 
-			_, err := client.Ask(ctx, file, noulFile)
+			_, err := client.Ask(ctx, file, noulFile, nil)
 
 			require.NoError(t, err)
 			require.Equal(t, "File: a.go\n\n@@ -1 +1 @@", got["state"])
@@ -114,7 +162,7 @@ rules:
 			var got map[string]any
 			server := newServer(t, `{"only-rule":{"type":"choice","choice":"no-db"}}`, &got)
 
-			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, choice)
+			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, choice, nil)
 
 			require.NoError(t, err)
 			question := got["questions"].(map[string]any)["only-rule"].(map[string]any)
@@ -131,7 +179,7 @@ rules:
 			var got map[string]any
 			server := newServer(t, `{"only-rule":{"type":"score","score":1}}`, &got)
 
-			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, score)
+			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, score, nil)
 
 			require.NoError(t, err)
 			question := got["questions"].(map[string]any)["only-rule"].(map[string]any)
@@ -148,7 +196,7 @@ rules:
 			}))
 			defer server.Close()
 
-			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, noulFile)
+			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, noulFile, nil)
 
 			require.NoError(t, err)
 			require.Equal(t, "Bearer secret", authorization)
@@ -162,7 +210,7 @@ rules:
 			}`, nil)
 			defer server.Close()
 
-			answers, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, questionsFile)
+			answers, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, questionsFile, nil)
 
 			require.NoError(t, err)
 			require.Len(t, answers, 3)
@@ -184,7 +232,7 @@ rules:
 			}`, nil)
 			defer server.Close()
 
-			answers, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, questionsFile)
+			answers, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, questionsFile, nil)
 
 			require.NoError(t, err)
 			require.Len(t, answers, 3)
@@ -203,7 +251,7 @@ rules:
 			server := newServer(t, `{"only-rule":{"type":"score","score":2.4}}`, nil)
 			defer server.Close()
 
-			answers, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, scoreFile)
+			answers, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, scoreFile, nil)
 
 			require.NoError(t, err)
 			require.Equal(t, 2, *answers[0].Score)
@@ -213,7 +261,7 @@ rules:
 			server := newServer(t, `{}`, nil)
 			defer server.Close()
 
-			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, questionsFile)
+			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, questionsFile, nil)
 
 			require.ErrorContains(t, err, "no-flag-field")
 		})
@@ -234,7 +282,7 @@ rules:
 			}))
 			defer server.Close()
 
-			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, noulFile)
+			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, noulFile, nil)
 
 			require.NoError(t, err)
 			require.Equal(t, 3, attempts)
@@ -253,7 +301,7 @@ rules:
 			}))
 			defer server.Close()
 
-			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, noulFile)
+			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, noulFile, nil)
 
 			require.NoError(t, err)
 			require.Equal(t, 2, attempts)
@@ -268,7 +316,7 @@ rules:
 			}))
 			defer server.Close()
 
-			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, noulFile)
+			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, noulFile, nil)
 
 			require.ErrorContains(t, err, "429")
 			require.Equal(t, 6, attempts)
@@ -284,7 +332,7 @@ rules:
 			}))
 			defer server.Close()
 
-			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, noulFile)
+			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, noulFile, nil)
 
 			require.ErrorContains(t, err, "the key is invalid")
 			require.Equal(t, 1, attempts)
@@ -300,7 +348,7 @@ rules:
 			}))
 			defer server.Close()
 
-			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, noulFile)
+			_, err := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").Ask(ctx, file, noulFile, nil)
 
 			require.ErrorContains(t, err, "a question is malformed")
 			require.Equal(t, 1, attempts)

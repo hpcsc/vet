@@ -29,7 +29,7 @@ func TestFake(t *testing.T) {
 			fake := NewFake().
 				WithAnswers(Answer{Rule: "a-rule", Noul: &limit})
 
-			answers, err := fake.Ask(context.Background(), diff.File{Path: "a.go", Diff: "@@ -1 +1 @@"}, questions)
+			answers, err := fake.Ask(context.Background(), diff.File{Path: "a.go", Diff: "@@ -1 +1 @@"}, questions, nil)
 
 			require.NoError(t, err)
 			require.Equal(t, []Answer{{Rule: "a-rule", Noul: &limit}}, answers)
@@ -40,7 +40,7 @@ func TestFake(t *testing.T) {
 			want := errors.New("the backend is down")
 			fake := NewFake().WithError(want)
 
-			_, err := fake.Ask(context.Background(), diff.File{Path: "a.go", Diff: ""}, questions)
+			_, err := fake.Ask(context.Background(), diff.File{Path: "a.go", Diff: ""}, questions, nil)
 
 			require.ErrorIs(t, err, want)
 		})

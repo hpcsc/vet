@@ -121,6 +121,22 @@ The scope can sit once at the top of the questions file instead of on every rule
 
 A changed file that no rule applies to is skipped: the tool does not ask the backend about it, so a change to a README answers none of the Go naming rules.
 
+A rule can be undecidable not because it is badly worded but because the fact it turns on is not in the prompt. A top-level `include` names the repository material to put in the prompt beside the file's own path and diff:
+
+```yaml
+version: 1
+include: [siblingFilePaths, containingDirDeclarations]
+rules:
+  - id: test-file-name
+    instructions: A test file is not named for the file it tests.
+    type: noul
+    noulLimit: 0.5
+```
+
+The values are `siblingFilePaths`, `containingDirDeclarations`, `containingDirContent`, `repoDeclarations`, `fileContent` and `previousFileContent`, and they are read from the tree at `HEAD`, except `previousFileContent`, which reads the base. Declarations come from Go's parser, so a non-Go file in the directory is listed but contributes none, and a file that does not parse is skipped.
+
+`include` sits on the questions file rather than on a rule because one call judges every rule applying to a file, so the prompt has to hold what all of them need; on a rule it would mean the same material rendered once per rule wanting it. Loading a directory unions the set, so two files cannot pay twice for the same material. The order is fixed to the order the material goes into the prompt rather than the order the names were written, so the same rules produce the same prompt every run.
+
 A rule can also name something the change has to do before it applies. `requiresAddedLine` and `requiresRemovedLine` hold a regular expression, and the rule is skipped unless the change adds or removes at least one line that matches. The check reads the patch, so it costs nothing and cannot produce a wrong answer:
 
 ```yaml
@@ -305,6 +321,7 @@ internal/git/            diff commands, base detection
 internal/gittest/        a fake git repository for tests
 internal/diff/           the per-file diff
 internal/questions/      the questions file model and validation
+internal/material/       the repository material a questions file asks for
 internal/backend/        the Backend interface
 internal/backend/jev/    the Jev client
 internal/verdict/        the rule check and the report

@@ -14,6 +14,7 @@ import (
 
 	"github.com/hpcsc/vet/internal/backend"
 	"github.com/hpcsc/vet/internal/diff"
+	"github.com/hpcsc/vet/internal/material"
 	"github.com/hpcsc/vet/internal/questions"
 )
 
@@ -58,8 +59,8 @@ type answer struct {
 	Legend        map[string]string  `json:"legend,omitempty"`
 }
 
-func (c *Client) Ask(ctx context.Context, file diff.File, q questions.File) ([]backend.Answer, error) {
-	req, err := c.request(file, q)
+func (c *Client) Ask(ctx context.Context, file diff.File, q questions.File, sections []material.Section) ([]backend.Answer, error) {
+	req, err := c.request(file, q, sections)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +71,7 @@ func (c *Client) Ask(ctx context.Context, file diff.File, q questions.File) ([]b
 	return c.answersInto(resp, q)
 }
 
-func (c *Client) request(file diff.File, rules questions.File) (request, error) {
+func (c *Client) request(file diff.File, rules questions.File, sections []material.Section) (request, error) {
 	questionsMap := make(map[string]question, len(rules.Rules))
 	for _, rule := range rules.Rules {
 		q := question{Type: rule.Type, Instructions: rule.Instructions}
@@ -85,7 +86,13 @@ func (c *Client) request(file diff.File, rules questions.File) (request, error) 
 		}
 		questionsMap[rule.ID] = q
 	}
+	// The material goes after the diff, not before it. The diff is what the
+	// questions are about, so the last thing in the state stays the thing being
+	// judged and the evidence reads as the appendix it is.
 	state := "File: " + file.Path + "\n\n" + file.Diff
+	if evidence := material.Render(sections, file.Path); evidence != "" {
+		state += "\n\n" + evidence
+	}
 	if rules.Context != "" {
 		state = rules.Context + "\n\n" + state
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/hpcsc/vet/internal/diff"
+	"github.com/hpcsc/vet/internal/material"
 	"github.com/hpcsc/vet/internal/questions"
 )
 
@@ -27,7 +28,7 @@ func (f *Fake) WithError(err error) *Fake {
 	return f
 }
 
-func (f *Fake) Ask(_ context.Context, file diff.File, _ questions.File) ([]Answer, error) {
+func (f *Fake) Ask(_ context.Context, file diff.File, _ questions.File, _ []material.Section) ([]Answer, error) {
 	f.files = append(f.files, file)
 	return f.answers, f.err
 }

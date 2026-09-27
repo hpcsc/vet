@@ -46,6 +46,12 @@ func TestInclude(t *testing.T) {
 			require.Error(t, err)
 		})
 
+		t.Run("puts a single file's names in prompt order, not the order it wrote them", func(t *testing.T) {
+			file, err := Parse([]byte("version: 1\ninclude: [previousFileContent, siblingFilePaths, fileContent]\n"+minimalRule), t.TempDir())
+			require.NoError(t, err)
+			require.Equal(t, []Include{SiblingFilePaths, FileContent, PreviousFileContent}, file.Include)
+		})
+
 		t.Run("accepts a questions file that asks for nothing", func(t *testing.T) {
 			file, err := Parse([]byte("version: 1\n"+minimalRule), t.TempDir())
 			require.NoError(t, err)

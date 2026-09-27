@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 
 	"github.com/hpcsc/vet/internal/backend"
 	"github.com/hpcsc/vet/internal/diff"
 	"github.com/hpcsc/vet/internal/git"
+	"github.com/hpcsc/vet/internal/material"
 	"github.com/hpcsc/vet/internal/questions"
 	"github.com/hpcsc/vet/internal/verdict"
 )
@@ -25,6 +27,7 @@ type tuiRenderer func(io.Writer, verdict.Report, bool) error
 
 type judge struct {
 	out       io.Writer
+	errOut    io.Writer
 	repo      *git.Repo
 	backend   backend.Judge
 	questions string
@@ -33,6 +36,10 @@ type judge struct {
 	all       bool
 	exit      bool
 	tui       tuiRenderer
+	// materialBytes counts what the added repository material cost across every
+	// file, so a run says what the evidence was worth in prompt bytes instead of
+	// leaving it to be guessed at from the rules that asked for it.
+	materialBytes atomic.Int64
 }
 
 func (j *judge) run(ctx context.Context) error {
@@ -49,9 +56,12 @@ func (j *judge) run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	answers, err := j.askAll(ctx, q, files)
+	answers, err := j.askAll(ctx, q, files, base)
 	if err != nil {
 		return err
+	}
+	if n := j.materialBytes.Load(); n > 0 {
+		fmt.Fprintf(j.diagnostics(), "vet: added %d bytes of repository material to the prompts\n", n)
 	}
 	report, err := verdict.Judge(base, q, answers)
 	if err != nil {
@@ -66,7 +76,8 @@ func (j *judge) run(ctx context.Context) error {
 	return nil
 }
 
-func (j *judge) askAll(ctx context.Context, file questions.File, files []diff.File) ([]backend.Answer, error) {
+func (j *judge) askAll(ctx context.Context, file questions.File, files []diff.File, base string) ([]backend.Answer, error) {
+	resolver := material.NewResolver(j.repo)
 	sem := make(chan struct{}, 4)
 	results := make([][]backend.Answer, len(files))
 	errs := make([]error, len(files))
@@ -81,7 +92,14 @@ func (j *judge) askAll(ctx context.Context, file questions.File, files []diff.Fi
 			if !ok {
 				return
 			}
-			raw, err := j.backend.Ask(ctx, f, scoped)
+			sections, err := resolver.Resolve(ctx, scoped.Include, f, base)
+			if err == nil {
+				j.materialBytes.Add(int64(material.Bytes(sections)))
+			}
+			var raw []backend.Answer
+			if err == nil {
+				raw, err = j.backend.Ask(ctx, f, scoped, sections)
+			}
 			if err == nil {
 				answers := make([]backend.Answer, len(raw))
 				for k, a := range raw {
@@ -102,6 +120,16 @@ func (j *judge) askAll(ctx context.Context, file questions.File, files []diff.Fi
 		all = append(all, results[i]...)
 	}
 	return all, nil
+}
+
+// diagnostics is where a run says what it added to the prompts. It is not the
+// report's channel: the byte count is a fact about the run, not about the code
+// being judged, and neither output mode should have to carry it.
+func (j *judge) diagnostics() io.Writer {
+	if j.errOut == nil {
+		return io.Discard
+	}
+	return j.errOut
 }
 
 func (j *judge) render(report verdict.Report) error {

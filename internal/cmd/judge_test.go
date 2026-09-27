@@ -10,11 +10,15 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/hpcsc/vet/internal/backend"
+	"github.com/hpcsc/vet/internal/diff"
 	"github.com/hpcsc/vet/internal/git"
 	"github.com/hpcsc/vet/internal/gittest"
+	"github.com/hpcsc/vet/internal/material"
+	"github.com/hpcsc/vet/internal/questions"
 	"github.com/hpcsc/vet/internal/verdict"
 	"github.com/stretchr/testify/require"
 )
@@ -94,6 +98,88 @@ rules:
 			base:      "origin/main",
 		}, repo
 	}
+
+	t.Run("repository material", func(t *testing.T) {
+		withInclude := `version: 1
+include: [siblingFilePaths]
+rules:
+  - id: no-flag-field
+    instructions: adds a flag field
+    type: noul
+    noulLimit: 0.5
+    files:
+      - "**/*.go"
+`
+		setupWithInclude := func(t *testing.T) (judge, *recorder, *bytes.Buffer, *gittest.Repo) {
+			t.Helper()
+			repo := gittest.NewWithRemote(t)
+			repo.Commit("a/one.go", "package a\n", "Add one.go")
+			repo.Commit("a/two.go", "package a\n", "Add two.go")
+			questionsPath := filepath.Join(t.TempDir(), "questions.yaml")
+			require.NoError(t, os.WriteFile(questionsPath, []byte(withInclude), 0o644))
+			rec := &recorder{inner: backend.NewFake().WithAnswers(goAnswer...)}
+			errOut := &bytes.Buffer{}
+			return judge{
+				repo:      git.New(repo.Dir),
+				backend:   rec,
+				out:       &bytes.Buffer{},
+				errOut:    errOut,
+				questions: questionsPath,
+				base:      "origin/main",
+			}, rec, errOut, repo
+		}
+
+		t.Run("resolves what the questions file named and hands it to the backend", func(t *testing.T) {
+			j, rec, _, repo := setupWithInclude(t)
+			repo.Git("commit", "-q", "--allow-empty", "-m", "Change something")
+
+			require.NoError(t, j.run(ctx))
+
+			require.Len(t, rec.sections(), 2)
+			for _, sections := range rec.sections() {
+				require.Len(t, sections, 1)
+				require.Equal(t, questions.SiblingFilePaths, sections[0].Include)
+			}
+			// Each file is told about the other one, never about itself: the
+			// prompt already carries the file being judged. Files are judged
+			// concurrently, so this reads the set rather than the order.
+			var seen []string
+			for _, sections := range rec.sections() {
+				seen = append(seen, sections[0].Content)
+			}
+			require.Contains(t, seen, "Files in this directory:\na/two.go")
+			require.Contains(t, seen, "Files in this directory:\na/one.go")
+		})
+
+		t.Run("says what the material cost, on the diagnostics channel rather than the report", func(t *testing.T) {
+			j, _, errOut, repo := setupWithInclude(t)
+			repo.Git("commit", "-q", "--allow-empty", "-m", "Change something")
+
+			require.NoError(t, j.run(ctx))
+
+			require.Contains(t, errOut.String(), "bytes of repository material")
+		})
+
+		t.Run("leaves the report alone, because the byte count is not about the code", func(t *testing.T) {
+			j, _, _, repo := setupWithInclude(t)
+			repo.Git("commit", "-q", "--allow-empty", "-m", "Change something")
+			out := &bytes.Buffer{}
+			j.out = out
+
+			require.NoError(t, j.run(ctx))
+
+			require.NotContains(t, out.String(), "repository material")
+		})
+
+		t.Run("asks for no material when the questions file names none", func(t *testing.T) {
+			j, _ := setup(t, cleanAnswers)
+			j.errOut = &bytes.Buffer{}
+
+			require.NoError(t, j.run(ctx))
+
+			require.Empty(t, j.errOut.(*bytes.Buffer).String())
+		})
+	})
 
 	t.Run("clean change", func(t *testing.T) {
 		t.Run("hides passing checks and prints a no-violation summary", func(t *testing.T) {
@@ -410,4 +496,25 @@ func TestOutputMode(t *testing.T) {
 			require.NotContains(t, text, "--json", path)
 		}
 	})
+}
+
+// recorder is a backend that keeps what it was asked, so a test can see the
+// material that reached the prompt rather than inferring it from the output.
+type recorder struct {
+	inner    backend.Judge
+	mu       sync.Mutex
+	recorded [][]material.Section
+}
+
+func (r *recorder) Ask(ctx context.Context, f diff.File, q questions.File, sections []material.Section) ([]backend.Answer, error) {
+	r.mu.Lock()
+	r.recorded = append(r.recorded, sections)
+	r.mu.Unlock()
+	return r.inner.Ask(ctx, f, q, sections)
+}
+
+func (r *recorder) sections() [][]material.Section {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.recorded
 }

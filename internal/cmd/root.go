@@ -98,6 +98,7 @@ func judgeAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	judger := judge{
 		out:       cmd.Root().Writer,
+		errOut:    cmd.Root().ErrWriter,
 		repo:      git.New(repoDir),
 		backend:   jev.NewClient(&http.Client{Timeout: 2 * time.Minute}, apiURL, model, apiKey),
 		questions: questions,

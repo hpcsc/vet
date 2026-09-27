@@ -115,6 +115,10 @@ func Parse(data []byte, dir string) (File, error) {
 	if err := file.validate(); err != nil {
 		return File{}, err
 	}
+	// Normalise here rather than only when a directory is loaded, so a single
+	// questions file gets the same fixed order and the prompt does not depend on
+	// the order the author happened to write the names in.
+	file.Include = unionIncludes(file.Include)
 	file.foldScope()
 	return file, nil
 }

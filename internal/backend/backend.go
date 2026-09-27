@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/hpcsc/vet/internal/diff"
+	"github.com/hpcsc/vet/internal/material"
 	"github.com/hpcsc/vet/internal/questions"
 )
 
@@ -19,7 +20,7 @@ type Answer struct {
 }
 
 type Judge interface {
-	Ask(ctx context.Context, file diff.File, q questions.File) ([]Answer, error)
+	Ask(ctx context.Context, file diff.File, q questions.File, material []material.Section) ([]Answer, error)
 }
 
 var _ Judge = (*Fake)(nil)

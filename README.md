@@ -276,6 +276,47 @@ rules:
 The reference works in both places: a `@` `context` and a `@` `instructions` each read their own file, and
 so does every questions file when you pass a directory of them.
 
+### Adding repository material
+
+A rule can be undecidable not because it is badly worded but because the fact it turns on is not in
+the prompt. `test-file-name` asks whether `loader_test.go` is named for the file it tests, and the
+model is never told that file exists, so it has to guess. An `include` names what to put in the
+prompt alongside the changed file's own path and diff.
+
+```yaml
+version: 1
+include: [siblingFilePaths, containingDirDeclarations]
+rules:
+  - id: test-file-name
+    instructions: Is the test file named for the file it tests?
+    type: noul
+    noulLimit: 0.5
+    requiresAddedLine: '^\s*(t\.Run\(|func Test)'
+```
+
+| `include` | What it adds |
+| --- | --- |
+| `siblingFilePaths` | The other files in the same directory |
+| `containingDirDeclarations` | The declarations in the same directory, without their bodies |
+| `containingDirContent` | The full text of the same directory, the changed file excepted |
+| `repoDeclarations` | The declarations from every file in the repository |
+| `fileContent` | The whole changed file, for a rule turning on something outside the changed lines |
+| `previousFileContent` | The file as it was before the change |
+
+Declarations are read with Go's parser, so they come from Go files. Anything else in the directory
+is listed by path but contributes no declarations, and a file that does not parse is skipped rather
+than failing the run.
+
+`include` is a property of the questions file, not of a rule, because one call judges every rule
+that applies to a file, so the prompt has to hold what all of them need. Passing a directory of
+questions files gives each path the union of what all of them asked for, and the same material
+appears once. It does not exclude test files by name: the only file it leaves out is the one being
+judged.
+
+`context` is a guideline the rule is measured against. `include` is the repository material the rule
+needs to decide. A run reports what the material cost on standard error, since that is a fact about
+the run rather than about the code being judged.
+
 `docs/proposal.md` specifies the file format in full. The base is the bare argument when you give one,
 else `--base`, else `origin/HEAD`, then `origin/main`, `origin/master`, `main`, `master`, and `HEAD~1`.
 Five words name a subcommand, so `vet` reads them as that subcommand rather than as a base: `config`,
