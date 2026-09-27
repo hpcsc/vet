@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/bmatcuk/doublestar/v4"
+	"github.com/hpcsc/vet/internal/diff"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -198,10 +199,10 @@ func (f File) validate() error {
 	return nil
 }
 
-func (f File) ForPath(path string) (File, bool) {
+func (f File) ForPath(change diff.File) (File, bool) {
 	var rules []Rule
 	for _, rule := range f.Rules {
-		if rule.AppliesTo(path) {
+		if rule.AppliesTo(change) {
 			rules = append(rules, rule)
 		}
 	}

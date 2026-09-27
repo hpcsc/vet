@@ -124,4 +124,24 @@ func TestFile(t *testing.T) {
 			require.Empty(t, diff.File{}.AddedLines())
 		})
 	})
+
+	t.Run("removed lines", func(t *testing.T) {
+		t.Run("gives the lines the change removes without the minus", func(t *testing.T) {
+			file := diff.File{Diff: "@@ -1,2 +1 @@\n-// gone\n+// kept\n"}
+
+			require.Equal(t, []string{"// gone"}, file.RemovedLines())
+		})
+
+		t.Run("leaves out the file header that also starts with a minus", func(t *testing.T) {
+			file := diff.File{Diff: "--- a/x\n+++ b/x\n@@ -1 +1 @@\n-package x\n+package x\n"}
+
+			require.Equal(t, []string{"package x"}, file.RemovedLines())
+		})
+
+		t.Run("gives nothing for a diff with no hunk", func(t *testing.T) {
+			file := diff.File{Diff: "diff --git a/x b/x\nsimilarity index 100%\nrename from x\nrename to y\n"}
+
+			require.Empty(t, file.RemovedLines())
+		})
+	})
 }

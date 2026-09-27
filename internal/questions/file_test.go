@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/hpcsc/vet/internal/diff"
 	"github.com/stretchr/testify/require"
 )
 
@@ -160,14 +161,51 @@ rules:
 		}
 
 		t.Run("keeps every rule that applies to the path", func(t *testing.T) {
-			scoped, ok := file.ForPath("internal/repo.go")
+			scoped, ok := file.ForPath(diff.File{Path: "internal/repo.go"})
 
 			require.True(t, ok)
 			require.Equal(t, []string{"no-flag-field", "database-migration", "log-guideline"}, ruleIDs(scoped))
 		})
 
 		t.Run("a path no rule applies to yields nothing", func(t *testing.T) {
-			_, ok := file.ForPath("README.md")
+			_, ok := file.ForPath(diff.File{Path: "README.md"})
+
+			require.False(t, ok)
+		})
+
+		t.Run("a change that needs a line a rule does not find leaves the rule out", func(t *testing.T) {
+			needsComment, err := Parse([]byte(example), "")
+			require.NoError(t, err)
+			needsComment.Rules[1].RequiresAddedLine = `^\s*//`
+
+			scoped, ok := needsComment.ForPath(diff.File{Path: "internal/repo.go",
+				Diff: "@@ -0,0 +1,2 @@\n+package repo\n+\n"})
+
+			require.True(t, ok)
+			require.Equal(t, []string{"no-flag-field", "log-guideline"}, ruleIDs(scoped))
+		})
+
+		t.Run("a change that has the line a rule needs keeps the rule", func(t *testing.T) {
+			needsComment, err := Parse([]byte(example), "")
+			require.NoError(t, err)
+			needsComment.Rules[1].RequiresAddedLine = `^\s*//`
+
+			scoped, ok := needsComment.ForPath(diff.File{Path: "internal/repo.go",
+				Diff: "@@ -0,0 +1,2 @@\n+// explains the query\n+\n"})
+
+			require.True(t, ok)
+			require.Equal(t, []string{"no-flag-field", "database-migration", "log-guideline"}, ruleIDs(scoped))
+		})
+
+		t.Run("a change no rule can judge yields nothing", func(t *testing.T) {
+			needsComment, err := Parse([]byte(example), "")
+			require.NoError(t, err)
+			for i := range needsComment.Rules {
+				needsComment.Rules[i].RequiresAddedLine = `^\s*//`
+			}
+
+			_, ok := needsComment.ForPath(diff.File{Path: "internal/repo.go",
+				Diff: "@@ -0,0 +1 @@\n+package repo\n"})
 
 			require.False(t, ok)
 		})
@@ -229,7 +267,7 @@ rules:
 			file, err := Parse([]byte(scoped), "")
 
 			require.NoError(t, err)
-			_, ok := file.ForPath("README.md")
+			_, ok := file.ForPath(diff.File{Path: "README.md"})
 			require.False(t, ok)
 		})
 
@@ -237,7 +275,7 @@ rules:
 			file, err := Parse([]byte(scoped), "")
 
 			require.NoError(t, err)
-			_, ok := file.ForPath("internal/repo_test.go")
+			_, ok := file.ForPath(diff.File{Path: "internal/repo_test.go"})
 			require.False(t, ok)
 		})
 	})
@@ -358,10 +396,10 @@ rules:
 			file, err := Load(dir)
 
 			require.NoError(t, err)
-			scoped, ok := file.ForPath("internal/repo.go")
+			scoped, ok := file.ForPath(diff.File{Path: "internal/repo.go"})
 			require.True(t, ok)
 			require.Equal(t, []string{"go-rule"}, ruleIDs(scoped))
-			scoped, ok = file.ForPath("internal/repo_test.go")
+			scoped, ok = file.ForPath(diff.File{Path: "internal/repo_test.go"})
 			require.True(t, ok)
 			require.Equal(t, []string{"go-rule", "test-rule"}, ruleIDs(scoped))
 		})

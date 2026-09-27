@@ -9,16 +9,24 @@ type File struct {
 }
 
 func (f File) AddedLines() []string {
-	var added []string
+	return f.lines('+')
+}
+
+func (f File) RemovedLines() []string {
+	return f.lines('-')
+}
+
+func (f File) lines(sign byte) []string {
+	var found []string
 	inHunk := false
 	for line := range strings.Lines(f.Diff) {
 		line = strings.TrimSuffix(line, "\n")
 		switch {
 		case strings.HasPrefix(line, "@@"):
 			inHunk = true
-		case inHunk && strings.HasPrefix(line, "+"):
-			added = append(added, strings.TrimPrefix(line, "+"))
+		case inHunk && len(line) > 0 && line[0] == sign:
+			found = append(found, line[1:])
 		}
 	}
-	return added
+	return found
 }

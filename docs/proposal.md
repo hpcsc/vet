@@ -121,6 +121,18 @@ The scope can sit once at the top of the questions file instead of on every rule
 
 A changed file that no rule applies to is skipped: the tool does not ask the backend about it, so a change to a README answers none of the Go naming rules.
 
+A rule can also name something the change has to do before it applies. `requiresAddedLine` and `requiresRemovedLine` hold a regular expression, and the rule is skipped unless the change adds or removes at least one line that matches. The check reads the patch, so it costs nothing and cannot produce a wrong answer:
+
+```yaml
+version: 1
+rules:
+  - id: comment-prevents-no-edit
+    instructions: The change deletes a comment that carried information a reader needs.
+    type: noul
+    noulLimit: 0.5
+    requiresRemovedLine: '^\s*//'
+```
+
 `context` and `instructions` also accept a file reference: when the value begins with `@`, the tool reads the file and uses its content instead. The path is relative to the questions file, and a leading `~` expands to the home directory. This lets a rule point at the guideline it measures instead of copying it, and lets one questions file reuse the same guideline files as the repository's other tooling.
 
 ```yaml
@@ -146,6 +158,7 @@ The tool validates the file before it asks the backend. It rejects a file when:
 - A rule has no id, or empty instructions.
 - A `@` reference names a file the tool cannot read.
 - A `files` or `exclude` glob does not parse.
+- A `requiresAddedLine` or `requiresRemovedLine` pattern does not compile.
 - `noulLimit` is outside 0 to 1.
 - `violatesWhen` names a key that is not in `choices`.
 - `scoreLimit` is outside the `scores` range.

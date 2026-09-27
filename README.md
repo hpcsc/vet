@@ -216,6 +216,40 @@ rules:
 A changed file that no rule applies to is skipped: `vet` does not ask the model about it,
 so a README-only change answers none of the Go rules.
 
+### Scoping rules to what a change does
+
+A rule can also ask for something the change has to contain. `requiresAddedLine` and
+`requiresRemovedLine` hold a regular expression, and `vet` skips the rule unless the
+change adds or removes at least one line that matches.
+
+This is for a rule that has nothing to judge without a particular line. A rule about
+comments that the change deleted cannot fire on a change that deletes no comment, and
+asking the model about it anyway only buys a wrong answer:
+
+```yaml
+version: 1
+name: Comment policy
+rules:
+  - id: comment-prevents-no-edit
+    description: The change removes a comment that explained the code.
+    instructions: |
+      The change deletes a comment that carried information a reader needs.
+    type: noul
+    noulLimit: 0.5
+    requiresRemovedLine: '^\s*//'
+  - id: comment-not-one-sentence
+    description: The change adds a comment of more than one sentence.
+    instructions: |
+      The change adds a comment that spans more than one sentence.
+    type: noul
+    noulLimit: 0.5
+    requiresAddedLine: '^\s*//'
+```
+
+The check runs before the model is asked, so a skipped rule costs nothing and produces no
+answer. Both patterns are checked when the questions file loads, and one that does not
+compile is an error that names the rule.
+
 ### Referencing other files
 
 A `context` or an `instructions` that starts with `@` names a file whose content is read instead, so a rule

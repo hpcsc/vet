@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hpcsc/vet/internal/diff"
 	"github.com/stretchr/testify/require"
 )
 
@@ -71,36 +72,99 @@ func TestRule(t *testing.T) {
 
 			require.ErrorContains(t, err, "exclude pattern")
 		})
+
+		t.Run("an invalid requiresAddedLine pattern is rejected", func(t *testing.T) {
+			err := parse(t, "version: 1\nrules:\n  - id: a-rule\n    instructions: does it?\n    type: noul\n    noulLimit: 0.5\n    requiresAddedLine: \"[bad\"")
+
+			require.ErrorContains(t, err, "requiresAddedLine")
+		})
+
+		t.Run("an invalid requiresRemovedLine pattern is rejected", func(t *testing.T) {
+			err := parse(t, "version: 1\nrules:\n  - id: a-rule\n    instructions: does it?\n    type: noul\n    noulLimit: 0.5\n    requiresRemovedLine: \"[bad\"")
+
+			require.ErrorContains(t, err, "requiresRemovedLine")
+		})
 	})
 
 	t.Run("applies-to", func(t *testing.T) {
 		t.Run("a rule with no files applies to every path", func(t *testing.T) {
 			rule := Rule{ID: "a-rule"}
 
-			require.True(t, rule.AppliesTo("README.md"))
-			require.True(t, rule.AppliesTo("internal/repo.go"))
+			require.True(t, rule.AppliesTo(diff.File{Path: "README.md"}))
+			require.True(t, rule.AppliesTo(diff.File{Path: "internal/repo.go"}))
 		})
 
 		t.Run("a files pattern crosses directories", func(t *testing.T) {
 			rule := Rule{ID: "a-rule", Files: []string{"**/*.go"}}
 
-			require.True(t, rule.AppliesTo("internal/repo.go"))
-			require.True(t, rule.AppliesTo("repo.go"))
-			require.False(t, rule.AppliesTo("README.md"))
+			require.True(t, rule.AppliesTo(diff.File{Path: "internal/repo.go"}))
+			require.True(t, rule.AppliesTo(diff.File{Path: "repo.go"}))
+			require.False(t, rule.AppliesTo(diff.File{Path: "README.md"}))
 		})
 
 		t.Run("an exclude pattern removes a path the files pattern matched", func(t *testing.T) {
 			rule := Rule{ID: "a-rule", Files: []string{"**/*.go"}, Exclude: []string{"**/*_test.go"}}
 
-			require.False(t, rule.AppliesTo("internal/repo_test.go"))
-			require.True(t, rule.AppliesTo("internal/repo.go"))
+			require.False(t, rule.AppliesTo(diff.File{Path: "internal/repo_test.go"}))
+			require.True(t, rule.AppliesTo(diff.File{Path: "internal/repo.go"}))
 		})
 
 		t.Run("an exclude alone applies to every path but the matched ones", func(t *testing.T) {
 			rule := Rule{ID: "a-rule", Exclude: []string{"**/*_test.go"}}
 
-			require.False(t, rule.AppliesTo("internal/repo_test.go"))
-			require.True(t, rule.AppliesTo("README.md"))
+			require.False(t, rule.AppliesTo(diff.File{Path: "internal/repo_test.go"}))
+			require.True(t, rule.AppliesTo(diff.File{Path: "README.md"}))
+		})
+	})
+
+	t.Run("needs", func(t *testing.T) {
+		change := func(patch string) diff.File {
+			return diff.File{Path: "repo.go", Diff: patch}
+		}
+
+		t.Run("a rule with no requirement applies to a change with no lines", func(t *testing.T) {
+			rule := Rule{ID: "a-rule"}
+
+			require.True(t, rule.AppliesTo(change("")))
+		})
+
+		t.Run("requiresAddedLine skips a change that adds no matching line", func(t *testing.T) {
+			rule := Rule{ID: "a-rule", RequiresAddedLine: `^func Test`}
+
+			require.False(t, rule.AppliesTo(change("@@ -0,0 +1 @@\n+package repo\n")))
+			require.True(t, rule.AppliesTo(change("@@ -0,0 +1 @@\n+func TestX(t *testing.T) {\n")))
+		})
+
+		t.Run("requiresAddedLine ignores a matching line the change only removes", func(t *testing.T) {
+			rule := Rule{ID: "a-rule", RequiresAddedLine: `^func Test`}
+
+			require.False(t, rule.AppliesTo(change("@@ -1 +0,0 @@\n-func TestX(t *testing.T) {\n")))
+		})
+
+		t.Run("requiresRemovedLine skips a change that removes no matching line", func(t *testing.T) {
+			rule := Rule{ID: "a-rule", RequiresRemovedLine: `^\s*//`}
+
+			require.False(t, rule.AppliesTo(change("@@ -0,0 +1 @@\n+// a new comment\n")))
+			require.True(t, rule.AppliesTo(change("@@ -1 +0,0 @@\n-// a comment that explained the code\n")))
+		})
+
+		t.Run("both requirements must be met", func(t *testing.T) {
+			rule := Rule{ID: "a-rule",
+				RequiresAddedLine:   `^\s*//`,
+				RequiresRemovedLine: `^\s*//`,
+			}
+
+			require.False(t, rule.AppliesTo(change("@@ -0,0 +1 @@\n+// new\n")))
+			require.False(t, rule.AppliesTo(change("@@ -1 +0,0 @@\n-// old\n")))
+			require.True(t, rule.AppliesTo(change("@@ -1 +1 @@\n-// old\n+// new\n")))
+		})
+
+		t.Run("a requirement skips a change with no hunk at all", func(t *testing.T) {
+			rule := Rule{ID: "a-rule", RequiresAddedLine: `.`}
+
+			pure := change("diff --git a/old.go b/new.go\nsimilarity index 100%\nrename from old.go\nrename to new.go\n")
+
+			require.False(t, rule.AppliesTo(pure))
 		})
 	})
 }

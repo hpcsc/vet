@@ -77,7 +77,7 @@ func (j *judge) askAll(ctx context.Context, file questions.File, files []diff.Fi
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			scoped, ok := file.ForPath(f.Path)
+			scoped, ok := file.ForPath(f)
 			if !ok {
 				return
 			}
