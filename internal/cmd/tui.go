@@ -258,6 +258,9 @@ func (m tuiModel) detailFields(row tuiRow) []string {
 		fields = append(fields, [2]string{"group", style.Group(row.group)})
 	}
 	fields = append(fields, [2]string{"value", row.answer.DisplayValue()})
+	if row.answer.Unsure {
+		fields = append(fields, [2]string{"raw value", fmt.Sprintf("%v", row.answer.Value)})
+	}
 	if row.answer.Label != "" {
 		fields = append(fields, [2]string{"label", row.answer.Label})
 	}

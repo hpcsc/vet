@@ -85,10 +85,10 @@ rules:
 			require.Equal(t, 0, report.Violations)
 		})
 
-		t.Run("a value at the limit violates the rule", func(t *testing.T) {
+		t.Run("a value at the limit violates the rule and is unsure", func(t *testing.T) {
 			report := judge(t, []backend.Answer{{Rule: "no-flag-field", Noul: noul(0.5)}})
 
-			require.Equal(t, Row{Rule: "no-flag-field", Description: "the change adds a flag field", Type: questions.Noul, Path: "internal/repo.go", Value: 0.5, Violates: true}, row(t, report))
+			require.Equal(t, Row{Rule: "no-flag-field", Description: "the change adds a flag field", Type: questions.Noul, Path: "internal/repo.go", Value: 0.5, Violates: true, Unsure: true}, row(t, report))
 			require.Equal(t, 1, report.Violations)
 		})
 
@@ -104,6 +104,33 @@ rules:
 
 			require.NoError(t, err)
 			require.JSONEq(t, `{"rule":"no-flag-field","description":"the change adds a flag field","path":"internal/repo.go","value":0.2}`, string(raw))
+		})
+
+		t.Run("a value just under the limit violates nothing and is unsure", func(t *testing.T) {
+			report := judge(t, []backend.Answer{{Rule: "no-flag-field", Noul: noul(0.46)}})
+
+			require.Equal(t, Row{Rule: "no-flag-field", Description: "the change adds a flag field", Type: questions.Noul, Path: "internal/repo.go", Value: 0.46, Unsure: true}, row(t, report))
+			require.Equal(t, 0, report.Violations)
+		})
+
+		t.Run("a value just over the limit violates the rule and is still unsure", func(t *testing.T) {
+			report := judge(t, []backend.Answer{{Rule: "no-flag-field", Noul: noul(0.53)}})
+
+			require.Equal(t, Row{Rule: "no-flag-field", Description: "the change adds a flag field", Type: questions.Noul, Path: "internal/repo.go", Value: 0.53, Violates: true, Unsure: true}, row(t, report))
+			require.Equal(t, 1, report.Violations)
+		})
+
+		t.Run("a value a full band away from the limit is not unsure", func(t *testing.T) {
+			report := judge(t, []backend.Answer{{Rule: "no-flag-field", Noul: noul(0.61)}})
+
+			require.Equal(t, Row{Rule: "no-flag-field", Description: "the change adds a flag field", Type: questions.Noul, Path: "internal/repo.go", Value: 0.61, Violates: true}, row(t, report))
+		})
+
+		t.Run("the JSON row keeps the number and marks it unsure", func(t *testing.T) {
+			raw, err := json.Marshal(row(t, judge(t, []backend.Answer{{Rule: "no-flag-field", Noul: noul(0.47)}})))
+
+			require.NoError(t, err)
+			require.JSONEq(t, `{"rule":"no-flag-field","description":"the change adds a flag field","path":"internal/repo.go","value":0.47,"unsure":true}`, string(raw))
 		})
 	})
 
@@ -288,6 +315,17 @@ rules:
 			require.Contains(t, text, "The change violates 2 rules.")
 		})
 
+		t.Run("writes unsure instead of a percentage for a noul value near its limit", func(t *testing.T) {
+			report, err := Judge("origin/main", file, []backend.Answer{
+				{Path: "a.go", Rule: "no-flag-field", Noul: noul(0.47)},
+			})
+			require.NoError(t, err)
+			text := report.TextWithPassing()
+
+			require.Contains(t, text, "✓ [noul] the change adds a flag field: unsure")
+			require.NotContains(t, text, "47%")
+		})
+
 		t.Run("shows the backend legend label when the row carries one", func(t *testing.T) {
 			report, err := Judge("origin/main", file, []backend.Answer{
 				{
@@ -420,5 +458,11 @@ func TestRow(t *testing.T) {
 
 		require.Equal(t, "migrates", choice.DisplayValue())
 		require.Equal(t, "2", score.DisplayValue())
+	})
+
+	t.Run("renders an unsure noul value as unsure and not as a number", func(t *testing.T) {
+		row := Row{Rule: "comment-not-one-sentence", Type: questions.Noul, Value: 0.47, Unsure: true}
+
+		require.Equal(t, "unsure", row.DisplayValue())
 	})
 }

@@ -18,10 +18,17 @@ type Row struct {
 	Type          questions.Kind     `json:"-"`
 	Label         string             `json:"label,omitempty"`
 	Violates      bool               `json:"violates,omitempty"`
+	Unsure        bool               `json:"unsure,omitempty"`
 	Confidence    *float64           `json:"confidence,omitempty"`
 	Probabilities map[string]float64 `json:"probabilities,omitempty"`
 	Legend        map[string]string  `json:"legend,omitempty"`
 }
+
+// noulUnsureBand is how near its limit a noul answer has to sit before the
+// report stops printing the number. Every one of the 19 verdict flips in the
+// 98-run accuracy audit landed within 0.08 of the limit, so a number closer
+// than this reads as a distinction the model did not really make.
+const noulUnsureBand = 0.1
 
 type Group struct {
 	Name    string `json:"name"`
@@ -85,6 +92,7 @@ func judge(rule questions.Rule, answer backend.Answer) (Row, error) {
 	case questions.Noul:
 		row.Value = *answer.Noul
 		row.Violates = row.Value.(float64) >= *rule.NoulLimit
+		row.Unsure = math.Abs(row.Value.(float64)-*rule.NoulLimit) < noulUnsureBand
 	case questions.Choice:
 		row.Value = *answer.Choice
 		row.Label = rule.Choices[row.Value.(string)]
@@ -111,6 +119,9 @@ func (a Row) DisplayRule() string {
 }
 
 func (a Row) DisplayValue() string {
+	if a.Unsure {
+		return "unsure"
+	}
 	if a.Type == questions.Noul {
 		if v, ok := a.Value.(float64); ok {
 			return fmt.Sprintf("%d%%", int(math.Round(v*100)))

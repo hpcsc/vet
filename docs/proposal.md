@@ -265,6 +265,8 @@ the violation rule for the question type:
 
 A `noul` answer has no confidence in the Jev response, so its row omits it. The text report shows a check or cross per visible rule with the rule `type` in brackets, and a summary that names every violated rule with the changed file and the questions file it comes from. A rule with a `description` renders it in place of the `id`; a rule without one renders the `id`. A `noul` row renders its value as a percentage.
 
+A `noul` answer within 0.1 of its `noulLimit` renders as `unsure` instead of a percentage, and its row gains `"unsure": true`. The verdict is unchanged, so the row still counts as a violation when the answer is at or over the limit. The number stays in the JSON `value` for a tool that reads it. An accuracy audit of 98 runs over 49 commits found that every `noul` verdict that changed between two runs of the same commit landed within 0.08 of the limit, so a number nearer than that reads as a distinction the model did not make.
+
 ### Exit codes
 
 | Code | Meaning |

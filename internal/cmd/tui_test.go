@@ -223,6 +223,23 @@ func TestTUI(t *testing.T) {
 			}
 		})
 
+		t.Run("shows the raw number in the details of an unsure value", func(t *testing.T) {
+			unsure := verdict.Report{Base: "main", Groups: []verdict.Group{{
+				Name: "rules",
+				Answers: []verdict.Row{{
+					Rule: "unsure-rule", Path: "change.txt",
+					Value: 0.47, Type: questions.Noul, Unsure: true,
+				}},
+			}}}
+
+			pane := tuiPane(t, tuiModelAt(t, unsure, true, 80, 24))
+
+			require.Contains(t, strings.Join(pane, "\n"), "value")
+			require.Contains(t, strings.Join(pane, "\n"), "unsure")
+			require.Contains(t, strings.Join(pane, "\n"), "raw value")
+			require.Contains(t, strings.Join(pane, "\n"), "0.47")
+		})
+
 		t.Run("keeps every line inside the terminal width", func(t *testing.T) {
 			for _, size := range []tuiSize{{width: 80, height: 24}, {width: 60, height: 14}, {width: 40, height: 10}, {width: 24, height: 8}} {
 				for _, report := range []verdict.Report{tuiReport(), wideTUIReport()} {
