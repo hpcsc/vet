@@ -13,12 +13,13 @@ import (
 )
 
 type File struct {
-	Version int      `yaml:"version"`
-	Name    string   `yaml:"name,omitempty"`
-	Context string   `yaml:"context,omitempty"`
-	Files   []string `yaml:"files,omitempty"`
-	Exclude []string `yaml:"exclude,omitempty"`
-	Rules   []Rule   `yaml:"rules"`
+	Version int       `yaml:"version"`
+	Name    string    `yaml:"name,omitempty"`
+	Context string    `yaml:"context,omitempty"`
+	Files   []string  `yaml:"files,omitempty"`
+	Exclude []string  `yaml:"exclude,omitempty"`
+	Include []Include `yaml:"include,omitempty"`
+	Rules   []Rule    `yaml:"rules"`
 }
 
 func Load(path string) (File, error) {
@@ -59,6 +60,7 @@ func loadDirectory(path string) (File, error) {
 	seen := map[string]struct{}{}
 	contexts := []string{}
 	seenContexts := map[string]struct{}{}
+	includes := [][]Include{}
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -88,8 +90,10 @@ func loadDirectory(path string) (File, error) {
 				contexts = append(contexts, parsed.Context)
 			}
 		}
+		includes = append(includes, parsed.Include)
 		file.Rules = append(file.Rules, parsed.Rules...)
 	}
+	file.Include = unionIncludes(includes...)
 	file.Version = 1
 	if len(contexts) > 0 {
 		file.Context = strings.Join(contexts, "\n\n")
@@ -180,6 +184,11 @@ func Marshal(file File) ([]byte, error) {
 func (f File) validate() error {
 	if f.Version != 1 {
 		return errors.New("unsupported version, only version 1 is supported")
+	}
+	for _, include := range f.Include {
+		if !include.valid() {
+			return fmt.Errorf("the questions file includes %q, which is not one of %s", include, includeNames())
+		}
 	}
 	for _, pattern := range f.Files {
 		if !doublestar.ValidatePattern(pattern) {
