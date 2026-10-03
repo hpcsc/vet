@@ -47,7 +47,7 @@ func (r *Resolver) Resolve(ctx context.Context, includes []questions.Include, f 
 		}
 		sections = append(sections, Section{Include: include, Content: content})
 	}
-	return sections, nil
+	return cap(sections), nil
 }
 
 func (r *Resolver) resolveOne(ctx context.Context, include questions.Include, f diff.File, dir, base string) (string, error) {

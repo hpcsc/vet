@@ -173,6 +173,30 @@ func TestSection(t *testing.T) {
 		})
 	})
 
+	t.Run("cap", func(t *testing.T) {
+		t.Run("leaves material under the limit alone", func(t *testing.T) {
+			sections := []Section{{Include: questions.FileContent, Content: "short"}}
+			require.Equal(t, sections, cap(sections))
+		})
+
+		t.Run("cuts the section that crosses the limit and drops the rest", func(t *testing.T) {
+			big := strings.Repeat("x", maxMaterialBytes)
+			sections := []Section{
+				{Include: questions.SiblingFilePaths, Content: "names"},
+				{Include: questions.FileContent, Content: big},
+				{Include: questions.PreviousFileContent, Content: "dropped"},
+			}
+
+			kept := cap(sections)
+
+			require.Len(t, kept, 2)
+			require.Equal(t, questions.SiblingFilePaths, kept[0].Include)
+			require.Equal(t, questions.FileContent, kept[1].Include)
+			require.True(t, strings.HasSuffix(kept[1].Content, "..."))
+			require.LessOrEqual(t, Bytes(kept), maxMaterialBytes)
+		})
+	})
+
 	t.Run("render", func(t *testing.T) {
 		t.Run("labels each section with the file and the piece it came from", func(t *testing.T) {
 			rendered := Render([]Section{{Include: questions.SiblingFilePaths, Content: "Files in this directory:\na.go"}}, "internal/diff/file.go")
