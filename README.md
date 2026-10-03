@@ -72,6 +72,11 @@ does not gate the exit code. The number stays in the JSON `value` for a tool tha
 asked the same question twice answers `noul` somewhere near its limit often enough that a number that
 close says less than the verdict does.
 
+`vet` can cache each answer by the exact prompt that produced it, so the same change against the same
+questions reports the same answers across runs instead of the model's run-to-run churn. Caching is off
+unless you ask for it: pass `--cache-dir <dir>`, or set `VET_CACHE_DIR`, to store and reuse the answers
+there.
+
 ## API key
 
 `vet` takes the System One API key from the first of these that is set:

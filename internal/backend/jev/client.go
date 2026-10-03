@@ -25,10 +25,21 @@ type Client struct {
 	api   string
 	model string
 	key   string
+	cache *cache
 }
 
-func NewClient(httpClient *http.Client, api, model, key string) backend.Judge {
+func NewClient(httpClient *http.Client, api, model, key string) *Client {
 	return &Client{http: httpClient, api: api, model: model, key: key}
+}
+
+// WithCache makes the client answer a request it has seen before from a local
+// cache instead of the model, so the same prompt gets the same answer across
+// runs.
+func (c *Client) WithCache(dir string) *Client {
+	if dir != "" {
+		c.cache = newCache(dir)
+	}
+	return c
 }
 
 var _ backend.Judge = (*Client)(nil)
@@ -64,9 +75,21 @@ func (c *Client) Ask(ctx context.Context, file diff.File, q questions.File, sect
 	if err != nil {
 		return nil, err
 	}
+	key, err := requestKey(req)
+	if err != nil {
+		return nil, err
+	}
+	if c.cache != nil {
+		if resp, ok := c.cache.load(key); ok {
+			return c.answersInto(resp, q)
+		}
+	}
 	resp, err := c.post(ctx, req)
 	if err != nil {
 		return nil, err
+	}
+	if c.cache != nil {
+		c.cache.store(key, resp)
 	}
 	return c.answersInto(resp, q)
 }

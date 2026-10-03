@@ -54,6 +54,7 @@ func newCommand() *cli.Command {
 			&cli.StringFlag{Name: "model", Value: "jev-latest", Usage: "the model to judge with"},
 			&cli.StringFlag{Name: "api-key", Value: "", Usage: "the System One API key (default TYPESAFE_API_KEY, then the api-key-command in the config)"},
 			&cli.StringFlag{Name: "config", Value: "", Usage: "the path of the config file (default ~/.config/vet/config.yaml, then a .vet.yaml in the repository root)"},
+			&cli.StringFlag{Name: "cache-dir", Value: "", Usage: "reuse answers from a previous run of the same prompt, stored under this directory (default VET_CACHE_DIR, else no cache)"},
 		},
 		Action: judgeAction,
 		Commands: []*cli.Command{
@@ -98,11 +99,15 @@ func judgeAction(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+	client := jev.NewClient(&http.Client{Timeout: 2 * time.Minute}, apiURL, model, apiKey)
+	if dir := cacheDirOf(cmd.String("cache-dir"), os.Getenv); dir != "" {
+		client = client.WithCache(dir)
+	}
 	judger := judge{
 		out:       cmd.Root().Writer,
 		errOut:    cmd.Root().ErrWriter,
 		repo:      git.New(repoDir),
-		backend:   jev.NewClient(&http.Client{Timeout: 2 * time.Minute}, apiURL, model, apiKey),
+		backend:   client,
 		questions: questions,
 		base:      baseOf(cmd.String("base"), cmd.Args().First()),
 		output:    output,
@@ -110,6 +115,16 @@ func judgeAction(ctx context.Context, cmd *cli.Command) error {
 		exit:      cmd.Bool("exit-code"),
 	}
 	return judger.run(ctx)
+}
+
+// cacheDirOf is where the judge stores answers it has seen, so a re-run of the
+// same prompt answers the same way. It is opt-in: the empty string disables the
+// cache, and VET_CACHE_DIR is the fallback when no flag names a directory.
+func cacheDirOf(flag string, pathOf func(string) string) string {
+	if flag != "" {
+		return flag
+	}
+	return pathOf("VET_CACHE_DIR")
 }
 
 func baseOf(flag, arg string) string {

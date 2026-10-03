@@ -356,6 +356,55 @@ rules:
 	})
 }
 
+func TestCache(t *testing.T) {
+	ctx := context.Background()
+	noulFile := mustParse(t, `version: 1
+rules:
+  - id: no-flag-field
+    instructions: adds a flag field
+    type: noul
+    noulLimit: 0.5
+`)
+	file := diff.File{Path: "a.go", Diff: "@@ -1 +1 @@"}
+
+	t.Run("answers a repeated request from the cache", func(t *testing.T) {
+		requests := 0
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requests++
+			w.Header().Set("content-type", "application/json")
+			_, _ = io.WriteString(w, `{"answers":{"no-flag-field":{"type":"noul","noul":0.2}}}`)
+		}))
+		defer server.Close()
+		client := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").WithCache(t.TempDir())
+
+		first, err := client.Ask(ctx, file, noulFile, nil)
+		require.NoError(t, err)
+		second, err := client.Ask(ctx, file, noulFile, nil)
+		require.NoError(t, err)
+
+		require.Equal(t, 1, requests)
+		require.Equal(t, first, second)
+	})
+
+	t.Run("answers a different request from the model", func(t *testing.T) {
+		requests := 0
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requests++
+			w.Header().Set("content-type", "application/json")
+			_, _ = io.WriteString(w, `{"answers":{"no-flag-field":{"type":"noul","noul":0.2}}}`)
+		}))
+		defer server.Close()
+		client := jev.NewClient(server.Client(), server.URL, "jev-latest", "secret").WithCache(t.TempDir())
+
+		_, err := client.Ask(ctx, file, noulFile, nil)
+		require.NoError(t, err)
+		_, err = client.Ask(ctx, diff.File{Path: "b.go", Diff: "@@ -1 +1 @@"}, noulFile, nil)
+		require.NoError(t, err)
+
+		require.Equal(t, 2, requests)
+	})
+}
+
 func buildQuestions(t *testing.T, kind, extra string) questions.File {
 	t.Helper()
 
