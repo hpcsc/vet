@@ -138,13 +138,14 @@ rules:
     requiresAddedLine: '^\s*type\s+\w+\s+interface\b'
 
   - id: package-doc-comment
-    description: The change adds a package or file doc comment.
+    description: The change adds a package doc comment.
     instructions: |
-      Answer 1 only when the change adds a package or file doc comment. Answer
-      0 when the change adds no such comment.
+      Answer 1 when the change adds a package doc comment, a comment that
+      starts with // Package. Answer 0 when the change adds no package doc
+      comment.
     type: noul
     noulLimit: 0.5
-    requiresAddedLine: '^\s*//'
+    requiresAddedLine: '^\s*//\s*Package\b'
 
   - id: test-file-name
     description: A test file is not named for the file it tests.
