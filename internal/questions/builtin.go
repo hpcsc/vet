@@ -5,70 +5,77 @@ func Default() (File, error) {
 }
 
 const builtinFile = `version: 1
-name: Go service policy
+name: Go change policy
+# A rule must be decidable from the file path and diff the model sees, plus the
+# material include names. A rule whose deciding fact is not in the prompt makes
+# the model guess at the threshold instead of answer. See docs/writing-questions.md.
 context: |
-  This repository treats public behavior and stored data as contracts.
-  Tests should prove what callers observe, not how the code is arranged internally.
+  This repository names a file for the type it declares, keeps a comment only
+  where the code cannot carry the fact, and tests observable behavior through
+  the public interface.
+include: [siblingFilePaths]
 rules:
-  - id: tests-through-public-api
-    description: The change's tests assert on implementation details.
+  - id: file-named-for-type
+    description: A file is not named for the type it declares.
     instructions: |
-      The change's tests assert private fields, internal call counts, call
-      order, or intermediate state instead of the result a caller observes.
-    type: noul
-    noulLimit: 0.5
-    files:
-      - "**/*_test.go"
-
-  - id: rejected-operation-inert
-    description: A rejected operation's test does not check the state stayed unchanged.
-    instructions: |
-      A test of a rejected operation checks the error but not that the
-      observable state stayed unchanged where the public interface can show it.
-    type: noul
-    noulLimit: 0.5
-    files:
-      - "**/*_test.go"
-
-  - id: comment-adds-guidance
-    description: A comment repeats the code instead of explaining a constraint.
-    instructions: |
-      The change adds a comment that repeats what the code says, narrates the
-      task, or leans on a ticket or document instead of explaining a
-      constraint a reader needs.
+      Answer 1 only when the change adds a type declaration whose name is not
+      the name of the file that holds it, in the repository's file-name style,
+      or adds two unrelated types to one file. Answer 0 when every type the
+      change adds is named for the file that holds it, and when the change adds
+      no type declaration.
     type: noul
     noulLimit: 0.5
     files:
       - "**/*.go"
+    exclude:
+      - "**/*_test.go"
+
+  - id: interface-repeats-package
+    description: An interface repeats its package name.
+    instructions: |
+      Answer 1 only when the change adds an interface whose name repeats its
+      package name. Answer 0 when every interface the change adds does not
+      repeat its package name, and when the change adds no interface.
+    type: noul
+    noulLimit: 0.5
+    requiresAddedLine: '^\s*type\s+\w+\s+interface\b'
+
+  - id: package-doc-comment
+    description: The change adds a package or file doc comment.
+    instructions: |
+      Answer 1 only when the change adds a package or file doc comment. Answer
+      0 when the change adds no such comment.
+    type: noul
+    noulLimit: 0.5
+    requiresAddedLine: '^\s*//'
+
+  - id: test-file-name
+    description: A test file is not named for the file it tests.
+    instructions: |
+      Answer 1 only when the change renames or adds a test file whose name is
+      not the file it tests plus _test, or names a test support file for its
+      role instead of the type it declares. Answer 0 when every test file in the
+      change is named for the file it tests, and when the change leaves the name
+      alone.
+    type: noul
+    noulLimit: 0.5
+    files:
+      - "**/*_test.go"
 
   - id: test-double
     description: Which test double the change uses for a dependency.
     instructions: |
-      Which test double does the change use for a dependency?
+      Which test double does the change use for a dependency? Answer no-double
+      when the change stubs no dependency out.
     type: choice
     choices:
       real: The real implementation or an in-memory double for the happy path.
       broken: A broken double that always fails, for error paths.
       recording: A recording double that captures call details.
       mock: A mock that verifies call sequences, the last resort.
+      no-double: The change stubs no dependency out.
     violatesWhen: mock
     files:
-      - "**/*_test.go"
-
-  - id: public-contract-change
-    description: The change preserves its public contract.
-    instructions: |
-      Which option best describes the compatibility of this change for
-      existing callers, stored data, and integrations?
-    type: choice
-    choices:
-      compatible: No existing caller or stored record needs to change.
-      additive: The change adds behavior without changing existing behavior.
-      breaking: The change removes or changes behavior that existing callers or stored data rely on.
-    violatesWhen: breaking
-    files:
-      - "**/*.go"
-    exclude:
       - "**/*_test.go"
 
   - id: testing-quality
