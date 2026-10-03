@@ -4,6 +4,7 @@ package git
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
 	"github.com/hpcsc/vet/internal/gittest"
@@ -112,7 +113,12 @@ func TestRepo(t *testing.T) {
 			top, err := New(repo.Dir).Toplevel(ctx)
 
 			require.NoError(t, err)
-			require.Equal(t, repo.Dir, top)
+			// git reports the resolved path, and on macOS the temp dir is a
+			// symlink, so /var and /private/var name the same folder. Compare
+			// the resolved paths so the two agree.
+			resolved, err := filepath.EvalSymlinks(repo.Dir)
+			require.NoError(t, err)
+			require.Equal(t, resolved, top)
 		})
 
 		t.Run("fails outside a repository", func(t *testing.T) {
