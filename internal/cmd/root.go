@@ -61,6 +61,8 @@ func newCommand() *cli.Command {
 			newQuestionsCommand(),
 			newVersionCommand(),
 			newUpdateCommand(),
+			newReplayCommand(),
+			newProfileCommand(),
 		},
 	}
 }

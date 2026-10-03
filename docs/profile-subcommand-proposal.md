@@ -2,13 +2,14 @@
 
 ## Status
 
-A proposal, not a shipped command. The tool that produced every number below is
-gitignored, and so is the sample of commits it replays, so none of this can be
-re-run from a clean checkout. The figures are here because they are the argument
-for the command, not because they are reproducible — anyone picking this up
-should re-measure before believing them, and should read
-[writing-questions.md](writing-questions.md) for the two experiments the numbers
-come from.
+Shipped as `vet profile`, with `vet replay` producing the saved runs it reads.
+The tool that produced every number below was a gitignored predecessor of those
+two commands, and so is the sample of commits it replays, so none of this can
+be re-run from a clean checkout without that sample. The figures are here
+because they are the argument for the command, not because they are
+reproducible — anyone picking this up should re-measure before believing them,
+and should read [writing-questions.md](writing-questions.md) for the two
+experiments the numbers come from.
 
 ## What it answers
 
@@ -84,7 +85,8 @@ Worst first, so the author sees what to fix before anything else.
   `verdict` decides that with the same `noulUnsureBand` the text output uses, so
   the two can never disagree about which answers were close to the line. A rule
   sitting here is guessing.
-- **reports** — answers that crossed the limit.
+- **reports** — answers that cleared the limit by the unsure band, the
+  violations that gate a run.
 - **median** — the middle value for a `noul` rule, the middle confidence for a
   `choice` rule. A rule sitting at 0.52 is telling you something different from
   one at 0.02, and the two render identically in the report. A `score` has no

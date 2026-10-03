@@ -138,10 +138,9 @@ answers that sit near the threshold:
 
 Measure it per rule before you tune it. The tables in this document were
 produced by replaying saved commits and counting answers that land near the
-threshold; `profile` in
-[profile-subcommand-proposal.md](profile-subcommand-proposal.md) is the
-proposal for making that a standing subcommand, so a rule author can check
-their own rule without keeping hand labels.
+threshold; `vet profile` (and the `vet replay` that produces its inputs) is the
+standing command for that, so a rule author can check their own rule without
+keeping hand labels.
 
 A rule where most answers land in 0.45–0.60 is undecidable, whatever its
 wording. Take it out of the questions file until the prompt carries the facts

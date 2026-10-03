@@ -54,6 +54,8 @@ vet questions example                # print an example questions file
 vet questions init                   # write the default questions file where vet looks for it
 vet config example                   # print the default config file
 vet config init                      # write the default config file where vet looks for it
+vet replay --questions my-rules.yaml . /tmp/runs <sha>...   # judge commits and save the reports
+vet profile /tmp/runs                # report how near each rule's answers sit to its limit
 ```
 
 `vet` runs the diff of a change against a file of written rules, answered by the System One model
@@ -319,8 +321,38 @@ the run rather than about the code being judged.
 
 `docs/proposal.md` specifies the file format in full. The base is the bare argument when you give one,
 else `--base`, else `origin/HEAD`, then `origin/main`, `origin/master`, `main`, `master`, and `HEAD~1`.
-Five words name a subcommand, so `vet` reads them as that subcommand rather than as a base: `config`,
-`questions`, `version`, `update`, and `help`. A branch with one of those names needs `--base`.
+Seven words name a subcommand, so `vet` reads them as that subcommand rather than as a base: `config`,
+`questions`, `version`, `update`, `replay`, `profile`, and `help`. A branch with one of those names needs
+`--base`.
+
+## Profiling a rule
+
+A rule that answers near its `noulLimit` is guessing: the deciding fact is not in the prompt, and the
+model returns a number near the threshold rather than a verdict. `vet replay` and `vet profile` measure
+that per rule, so an author can see which rules to fix without keeping hand labels.
+
+```shell
+vet replay --questions my-rules.yaml . /tmp/runs $(git rev-list -n 9 HEAD)
+vet profile /tmp/runs
+vet profile /tmp/runs --max-near-limit 0.2   # exit non-zero when a rule guesses too often
+```
+
+`replay` judges each commit against its own parent and saves the report under
+`<dir>/<sha>/1.json`, which is the JSON `vet --output json --all` already writes. `profile` reads those
+reports and prints one row per rule, worst first:
+
+```
+rule                            type    asked  near limit  reports  median
+comment-carried-by-code         noul    9      3 (33%)     1        0.28
+test-file-name                  noul    15     2 (13%)     1        0.27
+exposed-for-tests               noul    12     0 (0%)      0        0.04
+struct-naming                   choice  3      -           1        0.60
+```
+
+The columns are the number of answers, the share of them that sat near the limit, the number that
+reported, and the middle answer (or confidence for a `choice` rule). A rule whose answers cluster near
+the limit is undecidable and reports noise at the rate of a coin flip; narrow it, give the model the
+missing facts with `include`, or drop it.
 
 ## Version and update
 
