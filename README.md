@@ -3,6 +3,8 @@
 `vet` is a command-line tool that judges a change to code against a file of written rules / questions.
 It reviews the diff, answers each question with a model, and reports whether the change violates any rule.
 
+Read [Measuring vet](docs/accuracy.md) for how its accuracy was measured over 150 real commits.
+
 ## Why not a golangci-lint plugin?
 
 `golangci-lint` is designed for `go/analysis` analyzers that inspect loaded Go packages. `vet` is
