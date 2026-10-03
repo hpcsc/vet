@@ -65,11 +65,13 @@ rules:
   - id: test-double
     description: Which test double the change uses for a dependency.
     instructions: |
-      Which test double does the change use for a dependency? Answer no-double
-      when the change stubs no dependency out.
+      Which test double does the change use for a dependency? Answer stub
+      when the double returns a fixed answer, and no-double when the change
+      stubs no dependency out.
     type: choice
     choices:
-      real: The real implementation or an in-memory double for the happy path.
+      real: The real implementation or an in-memory double with real behavior.
+      stub: A stub that returns a fixed answer, for the happy path.
       broken: A broken double that always fails, for error paths.
       recording: A recording double that captures call details.
       mock: A mock that verifies call sequences, the last resort.
