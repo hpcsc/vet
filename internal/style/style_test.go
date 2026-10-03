@@ -27,6 +27,7 @@ func TestStyle(t *testing.T) {
 		require.Equal(t, "\x1b[34mno-secrets\x1b[m", Rule("no-secrets"))
 		require.Equal(t, "\x1b[32m"+PassMark+"\x1b[m", Pass(PassMark))
 		require.Equal(t, "\x1b[31m"+FailMark+"\x1b[m", Fail(FailMark))
+		require.Equal(t, "\x1b[93m"+UnsureMark+"\x1b[m", Unsure(UnsureMark))
 	})
 
 	t.Run("sets the weight the interactive view needs", func(t *testing.T) {

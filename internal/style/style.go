@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	PassMark = "✓"
-	FailMark = "✗"
+	PassMark   = "✓"
+	FailMark   = "✗"
+	UnsureMark = "?"
 )
 
 var (
@@ -19,9 +20,10 @@ var (
 	groupColor = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
 	typeColor  = lipgloss.NewStyle().Foreground(lipgloss.Color("5"))
 	ruleColor  = lipgloss.NewStyle().Foreground(lipgloss.Color("4"))
-	passColor  = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
-	failColor  = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
-	frameColor = lipgloss.Color("8")
+	passColor   = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	failColor   = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	unsureColor = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
+	frameColor  = lipgloss.Color("8")
 
 	// lipgloss paints every string, and the text report is assembled as a
 	// string, so the color profile decides here instead of at write time.
@@ -34,8 +36,9 @@ func File(s string) string  { return colorize(fileColor, s) }
 func Group(s string) string { return colorize(groupColor, s) }
 func Type(s string) string  { return colorize(typeColor, s) }
 func Rule(s string) string  { return colorize(ruleColor, s) }
-func Pass(s string) string  { return colorize(passColor, s) }
-func Fail(s string) string  { return colorize(failColor, s) }
+func Pass(s string) string   { return colorize(passColor, s) }
+func Fail(s string) string   { return colorize(failColor, s) }
+func Unsure(s string) string { return colorize(unsureColor, s) }
 
 // Frame draws the box around a pane of the interactive view. A pane is chrome
 // rather than report, so the border stays a gray the text report never uses.

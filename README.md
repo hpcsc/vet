@@ -65,8 +65,8 @@ groups. It exits 0 when the change violates no rule, 1 when a rule violates and 
 when it cannot finish: no questions file, no API key, or a backend error.
 
 A `noul` answer within 0.1 of its `noulLimit` prints as `unsure` rather than a percentage, and the JSON row
-gains `"unsure": true`. The check or cross does not change, so an unsure answer still counts as a violation
-when it is at or over the limit, and the number stays in the JSON `value` for a tool that reads it. A model
+gains `"unsure": true`. An unsure answer counts as neither a pass nor a violation: its mark is `?` and it
+does not gate the exit code. The number stays in the JSON `value` for a tool that reads it. A model
 asked the same question twice answers `noul` somewhere near its limit often enough that a number that
 close says less than the verdict does.
 

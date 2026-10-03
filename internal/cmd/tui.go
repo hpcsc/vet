@@ -340,8 +340,11 @@ func rowValue(row tuiRow) string {
 
 func (m tuiModel) rowLine(row tuiRow, selected bool, ruleWidth, valueWidth int) string {
 	mark, markColor := style.PassMark, style.Pass
-	if row.answer.Violates {
+	switch {
+	case row.answer.Violates:
 		mark, markColor = style.FailMark, style.Fail
+	case row.answer.Unsure:
+		mark, markColor = style.UnsureMark, style.Unsure
 	}
 	marker := "  "
 	if selected {

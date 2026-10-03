@@ -85,11 +85,11 @@ rules:
 			require.Equal(t, 0, report.Violations)
 		})
 
-		t.Run("a value at the limit violates the rule and is unsure", func(t *testing.T) {
+		t.Run("a value at the limit is unsure and violates nothing", func(t *testing.T) {
 			report := judge(t, []backend.Answer{{Rule: "no-flag-field", Noul: noul(0.5)}})
 
-			require.Equal(t, Row{Rule: "no-flag-field", Description: "the change adds a flag field", Type: questions.Noul, Path: "internal/repo.go", Value: 0.5, Violates: true, Unsure: true}, row(t, report))
-			require.Equal(t, 1, report.Violations)
+			require.Equal(t, Row{Rule: "no-flag-field", Description: "the change adds a flag field", Type: questions.Noul, Path: "internal/repo.go", Value: 0.5, Unsure: true}, row(t, report))
+			require.Equal(t, 0, report.Violations)
 		})
 
 		t.Run("a value above the limit violates the rule", func(t *testing.T) {
@@ -113,11 +113,11 @@ rules:
 			require.Equal(t, 0, report.Violations)
 		})
 
-		t.Run("a value just over the limit violates the rule and is still unsure", func(t *testing.T) {
+		t.Run("a value just over the limit is still unsure and violates nothing", func(t *testing.T) {
 			report := judge(t, []backend.Answer{{Rule: "no-flag-field", Noul: noul(0.53)}})
 
-			require.Equal(t, Row{Rule: "no-flag-field", Description: "the change adds a flag field", Type: questions.Noul, Path: "internal/repo.go", Value: 0.53, Violates: true, Unsure: true}, row(t, report))
-			require.Equal(t, 1, report.Violations)
+			require.Equal(t, Row{Rule: "no-flag-field", Description: "the change adds a flag field", Type: questions.Noul, Path: "internal/repo.go", Value: 0.53, Unsure: true}, row(t, report))
+			require.Equal(t, 0, report.Violations)
 		})
 
 		t.Run("a value a full band away from the limit is not unsure", func(t *testing.T) {
@@ -322,7 +322,7 @@ rules:
 			require.NoError(t, err)
 			text := report.TextWithPassing()
 
-			require.Contains(t, text, "✓ [noul] the change adds a flag field: unsure")
+			require.Contains(t, text, "? [noul] the change adds a flag field: unsure")
 			require.NotContains(t, text, "47%")
 		})
 

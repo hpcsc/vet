@@ -25,9 +25,10 @@ type Row struct {
 }
 
 // noulUnsureBand is how near its limit a noul answer has to sit before the
-// report stops printing the number. Every one of the 19 verdict flips in the
-// 98-run accuracy audit landed within 0.08 of the limit, so a number closer
-// than this reads as a distinction the model did not really make.
+// report treats it as unsure rather than as a pass or a violation. Every one
+// of the 19 verdict flips in the 98-run accuracy audit landed within 0.08 of
+// the limit, so a number this close reads as a distinction the model did not
+// really make, and gating on it turns the coin flip into a report.
 const noulUnsureBand = 0.1
 
 type Group struct {
@@ -91,8 +92,8 @@ func judge(rule questions.Rule, answer backend.Answer) (Row, error) {
 	switch rule.Type {
 	case questions.Noul:
 		row.Value = *answer.Noul
-		row.Violates = row.Value.(float64) >= *rule.NoulLimit
 		row.Unsure = math.Abs(row.Value.(float64)-*rule.NoulLimit) < noulUnsureBand
+		row.Violates = row.Value.(float64) >= *rule.NoulLimit && !row.Unsure
 	case questions.Choice:
 		row.Value = *answer.Choice
 		row.Label = rule.Choices[row.Value.(string)]
@@ -236,8 +237,11 @@ func (r Report) text(showPassing bool) string {
 			}
 			for _, answer := range answers {
 				mark := style.Pass(style.PassMark)
-				if answer.Violates {
+				switch {
+				case answer.Violates:
 					mark = style.Fail(style.FailMark)
+				case answer.Unsure:
+					mark = style.Unsure(style.UnsureMark)
 				}
 				b.WriteString(prefix)
 				fmt.Fprintf(&b, "%s [%s] %s: %s", mark, style.Type(string(answer.Type)), style.Rule(answer.DisplayRule()), answer.DisplayValue())
