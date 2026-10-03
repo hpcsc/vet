@@ -27,7 +27,7 @@ func TestQuestionsExampleCommand(t *testing.T) {
 		expected, err := questions.Default()
 		require.NoError(t, err)
 		require.Equal(t, expected, file)
-		require.Len(t, file.Rules, 6)
+		require.Len(t, file.Rules, 5)
 	})
 }
 
@@ -46,7 +46,7 @@ func TestQuestionsInitCommand(t *testing.T) {
 		require.NoError(t, err)
 		file, err := questions.Parse(data, "")
 		require.NoError(t, err)
-		require.Len(t, file.Rules, 6)
+		require.Len(t, file.Rules, 5)
 	})
 
 	t.Run("refuses to overwrite an existing file without --force", func(t *testing.T) {
@@ -80,7 +80,7 @@ func TestQuestionsInitCommand(t *testing.T) {
 		require.NoError(t, err)
 		file, err := questions.Parse(data, "")
 		require.NoError(t, err)
-		require.Len(t, file.Rules, 6)
+		require.Len(t, file.Rules, 5)
 	})
 
 	t.Run("expands a ~ in the path flag to the home directory", func(t *testing.T) {

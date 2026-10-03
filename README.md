@@ -115,35 +115,18 @@ An optional `description` labels the rule in the report, and the `id` stands in 
 `vet questions example` prints a complete, runnable starting point. A rule is only worth asking when its
 answer is decidable from the file path, the diff, and the repository material the file asks for with
 `include`. A rule whose deciding fact is not in the prompt makes the model guess at the threshold instead
-of answer, so the example asks for facts a compiler cannot see but the prompt does carry: whether a file
-is named for the type it declares, whether an interface repeats its package, whether a change adds a
-doc comment, and how a test names and stubs its dependencies. The rules below are an excerpt; edit them
-to match your repository:
+of answer, so the example asks for facts a compiler cannot see but the prompt does carry: whether an
+interface repeats its package, whether a change adds a doc comment, and how a test names and stubs its
+dependencies. The rules below are an excerpt; edit them to match your repository:
 
 ```yaml
 version: 1
 name: Go change policy
 context: |
-  This repository names a file for the type it declares, keeps a comment only
-  where the code cannot carry the fact, and tests observable behavior through
-  the public interface.
+  This repository keeps a comment only where the code cannot carry the fact,
+  and tests observable behavior through the public interface.
 include: [siblingFilePaths]
 rules:
-  - id: file-named-for-type
-    description: A file is not named for the type it declares.
-    instructions: |
-      Answer 1 only when the change adds a type declaration whose name is not
-      the name of the file that holds it, in the repository's file-name style,
-      or adds two unrelated types to one file. Answer 0 when every type the
-      change adds is named for the file that holds it, and when the change adds
-      no type declaration.
-    type: noul
-    noulLimit: 0.5
-    files:
-      - "**/*.go"
-    exclude:
-      - "**/*_test.go"
-
   - id: interface-repeats-package
     description: An interface repeats its package name.
     instructions: |

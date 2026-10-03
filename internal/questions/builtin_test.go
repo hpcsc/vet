@@ -14,20 +14,18 @@ func TestDefault(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Equal(t, 1, file.Version)
-		require.Len(t, file.Rules, 6)
-		require.Equal(t, "file-named-for-type", file.Rules[0].ID)
-		require.Equal(t, "interface-repeats-package", file.Rules[1].ID)
-		require.Equal(t, "package-doc-comment", file.Rules[2].ID)
-		require.Equal(t, "test-file-name", file.Rules[3].ID)
-		require.Equal(t, "test-double", file.Rules[4].ID)
-		require.Equal(t, "testing-quality", file.Rules[5].ID)
-		require.ElementsMatch(t, []Kind{Noul, Noul, Noul, Noul, Choice, Score}, []Kind{
+		require.Len(t, file.Rules, 5)
+		require.Equal(t, "interface-repeats-package", file.Rules[0].ID)
+		require.Equal(t, "package-doc-comment", file.Rules[1].ID)
+		require.Equal(t, "test-file-name", file.Rules[2].ID)
+		require.Equal(t, "test-double", file.Rules[3].ID)
+		require.Equal(t, "testing-quality", file.Rules[4].ID)
+		require.ElementsMatch(t, []Kind{Noul, Noul, Noul, Choice, Score}, []Kind{
 			file.Rules[0].Type,
 			file.Rules[1].Type,
 			file.Rules[2].Type,
 			file.Rules[3].Type,
 			file.Rules[4].Type,
-			file.Rules[5].Type,
 		})
 	})
 
