@@ -20,6 +20,11 @@ import (
 
 const maxAttempts = 6
 
+// maxDiffBytes caps the unified diff a prompt carries, matching the material
+// cap. A commit that rewrites a huge file would otherwise push the prompt past
+// the model's context.
+const maxDiffBytes = 16 * 1024
+
 type Client struct {
 	http  *http.Client
 	api   string
@@ -112,7 +117,7 @@ func (c *Client) request(file diff.File, rules questions.File, sections []materi
 	// The material goes after the diff, not before it. The diff is what the
 	// questions are about, so the last thing in the state stays the thing being
 	// judged and the evidence reads as the appendix it is.
-	state := "File: " + file.Path + "\n\n" + file.Diff
+	state := "File: " + file.Path + "\n\n" + cappedDiff(file.Diff)
 	if evidence := material.Render(sections, file.Path); evidence != "" {
 		state += "\n\n" + evidence
 	}
@@ -124,6 +129,16 @@ func (c *Client) request(file diff.File, rules questions.File, sections []materi
 		Model:     c.model,
 		Questions: questionsMap,
 	}, nil
+}
+
+// cappedDiff is the diff a prompt carries. A commit that rewrites a huge file
+// would otherwise push the prompt past the model's context, and a diff longer
+// than this is more than a reader can judge in one pass anyway.
+func cappedDiff(diffText string) string {
+	if len(diffText) <= maxDiffBytes {
+		return diffText
+	}
+	return diffText[:maxDiffBytes-3] + "..."
 }
 
 func (c *Client) post(ctx context.Context, req request) (response, error) {
