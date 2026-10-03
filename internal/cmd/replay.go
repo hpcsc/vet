@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/urfave/cli/v3"
 )
@@ -50,6 +51,7 @@ func replayAction(ctx context.Context, cmd *cli.Command) error {
 }
 
 func replayCommit(ctx context.Context, bin, questions, repo, dir, sha string) error {
+	started := time.Now()
 	work := filepath.Join(dir, sha, "work")
 	if err := os.RemoveAll(work); err != nil {
 		return err
@@ -81,7 +83,7 @@ func replayCommit(ctx context.Context, bin, questions, repo, dir, sha string) er
 	if err := json.Unmarshal(raw, &report); err != nil {
 		return fmt.Errorf("%s: %w", out, err)
 	}
-	fmt.Printf("%s: %d violations\n", shortSha(sha), report.Violations)
+	fmt.Printf("%s: %d violations in %s\n", shortSha(sha), report.Violations, time.Since(started).Round(time.Millisecond))
 	return nil
 }
 

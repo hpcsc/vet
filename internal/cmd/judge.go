@@ -7,6 +7,7 @@ import (
 	"io"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/hpcsc/vet/internal/backend"
 	"github.com/hpcsc/vet/internal/diff"
@@ -43,6 +44,7 @@ type judge struct {
 }
 
 func (j *judge) run(ctx context.Context) error {
+	started := time.Now()
 	base, err := j.repo.DetectBase(ctx, j.base)
 	if err != nil {
 		return err
@@ -70,6 +72,7 @@ func (j *judge) run(ctx context.Context) error {
 	if err := j.render(report); err != nil {
 		return err
 	}
+	fmt.Fprintf(j.diagnostics(), "vet: judged in %s\n", time.Since(started).Round(time.Millisecond))
 	if report.Violations > 0 && j.exit {
 		return exitCode(1)
 	}

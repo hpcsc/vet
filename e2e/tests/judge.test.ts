@@ -187,7 +187,7 @@ describe('the judge', () => {
     const result = await runCli(repo, [...judgeArgs(api), '--exit-code'])
 
     expect(result.status).toBe(1)
-    expect(result.stderr).toBe('')
+    expect(result.stderr).toContain('judged in')
   })
 
   it('hides passing answers in JSON by default', async () => {

@@ -177,7 +177,9 @@ rules:
 
 			require.NoError(t, j.run(ctx))
 
-			require.Empty(t, j.errOut.(*bytes.Buffer).String())
+			errText := j.errOut.(*bytes.Buffer).String()
+			require.NotContains(t, errText, "bytes of repository material")
+			require.Contains(t, errText, "judged in")
 		})
 	})
 

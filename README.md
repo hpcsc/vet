@@ -326,8 +326,8 @@ appears once. It does not exclude test files by name: the only file it leaves ou
 judged.
 
 `context` is a guideline the rule is measured against. `include` is the repository material the rule
-needs to decide. A run reports what the material cost on standard error, since that is a fact about
-the run rather than about the code being judged.
+needs to decide. A run reports what the material cost and how long it took on standard error, since
+those are facts about the run rather than about the code being judged.
 
 `docs/proposal.md` specifies the file format in full. The base is the bare argument when you give one,
 else `--base`, else `origin/HEAD`, then `origin/main`, `origin/master`, `main`, `master`, and `HEAD~1`.
